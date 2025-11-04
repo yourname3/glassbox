@@ -17,7 +17,9 @@ fn main() -> eframe::Result {
             .with_always_on_top()
             .with_decorations(false)
             .with_inner_size((800.0, 100.0))
-            .with_position((0.0, 0.0)),
+            .with_position((0.0, 0.0))
+            .with_transparent(true)
+        ,
             //.with_inner_size([400.0, 300.0])
             //.with_min_inner_size([300.0, 220.0]),
             // .with_icon(
@@ -27,6 +29,7 @@ fn main() -> eframe::Result {
             // ),
         ..Default::default()
     };
+
     eframe::run_native(
         "glassbox",
         native_options,

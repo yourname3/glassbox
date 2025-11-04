@@ -1,4 +1,4 @@
-use egui::ViewportId;
+use egui::{Color32, ViewportId};
 
 pub struct App {
     pub label: String,
@@ -33,6 +33,10 @@ impl eframe::App for App {
         //eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        [0.0, 0.0, 0.0, 0.0]
+    }
+
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
@@ -57,7 +61,11 @@ impl eframe::App for App {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default()
+            .frame(egui::Frame::default()
+                .fill(Color32::TRANSPARENT))
+            .show(ctx, |ui| {
+
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.heading("eframe template");
 
