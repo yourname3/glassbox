@@ -1,3 +1,5 @@
+use egui::ViewportId;
+
 pub struct App {
     pub label: String,
     pub value: f32,
@@ -81,6 +83,15 @@ impl eframe::App for App {
                 egui::warn_if_debug_build(ui);
             });
         });
+
+        ctx.show_viewport_deferred(ViewportId::from_hash_of("glassbox_controls"),
+            egui::ViewportBuilder::default()
+                .with_inner_size((400.0, 300.0)),
+            |ctx, class| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.label("Control Window");
+                });
+            });
     }
 }
 
