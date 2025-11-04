@@ -1,4 +1,5 @@
 use egui::{Color32, ViewportId};
+use raw_window_handle::HasWindowHandle;
 
 pub struct App {
     pub label: String,
@@ -42,54 +43,39 @@ impl eframe::App for App {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
+        #[cfg(target_os = "windows")]
+        {
+            use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            use windows::Win32::Foundation::HWND;
+            if let Ok(handle) = _frame.window_handle() {
+                if let RawWindowHandle::Win32(win) = handle.as_raw() {
+                    use std::ffi::c_void;
 
-            egui::MenuBar::new().ui(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
-                let is_web = cfg!(target_arch = "wasm32");
-                if !is_web {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Quit").clicked() {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                        }
-                    });
-                    ui.add_space(16.0);
+                    let hwnd = HWND(win.hwnd.get() as *mut c_void);
+                    use windows::Win32::UI::WindowsAndMessaging::{
+                        GetWindowLongW, SetWindowLongW,
+                        GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_NOACTIVATE,
+
+                        SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE
+                    };
+
+                    use crate::apply_window_transparency;
+                    unsafe {
+                        let style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+                        eprintln!("style: {:b}", style);
+                    }
+
+                    // TODO: Do we have to set this every frame..?
+                    apply_window_transparency(hwnd);
                 }
-
-                egui::widgets::global_theme_preference_buttons(ui);
-            });
-        });
+            }
+        }
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default()
-                .fill(Color32::TRANSPARENT))
+                .fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127)))
             .show(ctx, |ui| {
 
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.heading("eframe template");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(&mut self.label);
-            });
-
-            ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                self.value += 1.0;
-            }
-
-            ui.separator();
-
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/main/",
-                "Source code."
-            ));
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                powered_by_egui_and_eframe(ui);
-                egui::warn_if_debug_build(ui);
-            });
         });
 
         ctx.show_viewport_deferred(ViewportId::from_hash_of("glassbox_controls"),
