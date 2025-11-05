@@ -1,4 +1,5 @@
 use egui::{Color32, ViewportId};
+use rfd::FileDialog;
 
 pub struct App {
 
@@ -55,6 +56,12 @@ impl eframe::App for App {
             |ctx, class| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ui.label("Control Window");
+
+                    if ui.button("Open").clicked() {
+                        if let Some(album) = FileDialog::new().pick_folder() {
+                            log::info!("opening album: {:?}", album);
+                        }
+                    }
                 });
 
                 if ctx.input(|i| i.viewport().close_requested()) {
