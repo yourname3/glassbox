@@ -1,8 +1,30 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use egui::{Color32, ViewportId};
 use rfd::FileDialog;
 
-pub struct App {
+pub struct Song {
+    path: PathBuf,
+    display_name: String,
+}
 
+impl Song {
+    pub fn new(path: PathBuf) -> Self {
+        let display_name = path.to_string_lossy().to_string();
+        Song {
+            path,
+            display_name,
+        }
+    }
+}
+
+pub struct Album {
+    songs: Vec<Song>,
+}
+
+pub struct App {
+    current_album: Option<Album>
 }
 
 impl App {
@@ -21,7 +43,30 @@ impl App {
         //     Default::default()
         // }
         App {
+            current_album: None,
         }
+    }
+
+    fn open_album(&mut self, path: &PathBuf) -> std::io::Result<()> {
+        log::info!("opening album: {:?}", path);
+        let dir = std::fs::read_dir(path)?;
+
+        let mut songs: Vec<Song> = Vec::new();
+
+        for entry in dir {
+            let Ok(entry) = entry else { continue; };
+            if let Some(ext) = entry.path().extension() {
+                if ext == "ogg" {
+                    songs.push(Song::new(entry.path()));
+                }
+            }
+        }
+
+        self.current_album = Some(Album {
+            songs
+        });
+
+        Ok(())
     }
 }
 
@@ -34,6 +79,8 @@ impl eframe::App for App {
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
         [0.0, 0.0, 0.0, 0.0]
     }
+
+    
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -50,7 +97,11 @@ impl eframe::App for App {
 
         });
 
-        ctx.show_viewport_deferred(ViewportId::from_hash_of("glassbox_controls"),
+        // TODO:
+        // It would be ideal if we could defer the other viewport, but this
+        // does really complicate the ownership.
+
+        ctx.show_viewport_immediate(ViewportId::from_hash_of("glassbox_controls"),
             egui::ViewportBuilder::default()
                 .with_inner_size((400.0, 300.0)),
             |ctx, class| {
@@ -59,7 +110,13 @@ impl eframe::App for App {
 
                     if ui.button("Open").clicked() {
                         if let Some(album) = FileDialog::new().pick_folder() {
-                            log::info!("opening album: {:?}", album);
+                            self.open_album(&album);
+                        }
+                    }
+
+                    if let Some(album) = self.current_album.as_ref() {
+                        for song in &album.songs {
+                            ui.label(&song.display_name);
                         }
                     }
                 });
