@@ -1,9 +1,7 @@
 use egui::{Color32, ViewportId};
-use raw_window_handle::HasWindowHandle;
 
 pub struct App {
-    pub label: String,
-    pub value: f32,
+
 }
 
 impl App {
@@ -22,8 +20,6 @@ impl App {
         //     Default::default()
         // }
         App {
-            label: "label".to_string(),
-            value: 20.0,
         }
     }
 }
@@ -44,32 +40,7 @@ impl eframe::App for App {
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
         #[cfg(target_os = "windows")]
-        {
-            use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-            use windows::Win32::Foundation::HWND;
-            if let Ok(handle) = _frame.window_handle() {
-                if let RawWindowHandle::Win32(win) = handle.as_raw() {
-                    use std::ffi::c_void;
-
-                    let hwnd = HWND(win.hwnd.get() as *mut c_void);
-                    use windows::Win32::UI::WindowsAndMessaging::{
-                        GetWindowLongW, SetWindowLongW,
-                        GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_NOACTIVATE,
-
-                        SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE
-                    };
-
-                    use crate::apply_window_transparency;
-                    unsafe {
-                        let style = GetWindowLongW(hwnd, GWL_EXSTYLE);
-                        eprintln!("style: {:b}", style);
-                    }
-
-                    // TODO: Do we have to set this every frame..?
-                    apply_window_transparency(hwnd);
-                }
-            }
-        }
+        crate::os::apply_window_transparency(_frame);
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default()
@@ -87,18 +58,4 @@ impl eframe::App for App {
                 });
             });
     }
-}
-
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
-    });
 }
