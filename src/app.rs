@@ -56,6 +56,10 @@ impl eframe::App for App {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ui.label("Control Window");
                 });
+
+                if ctx.input(|i| i.viewport().close_requested()) {
+                    ctx.send_viewport_cmd_to(ViewportId::ROOT, egui::ViewportCommand::Close);
+                }
             });
     }
 }
