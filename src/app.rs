@@ -6,15 +6,27 @@ use rfd::FileDialog;
 
 pub struct Song {
     path: PathBuf,
-    display_name: String,
+
+    title: String,
 }
 
 impl Song {
     pub fn new(path: PathBuf) -> Self {
-        let display_name = path.to_string_lossy().to_string();
+        let mut title = path.file_name().map(|t| { t.to_string_lossy().to_string() });
+
+        if let Ok(tags) = taglib::File::new(&path) {
+            if let Ok(tags) = tags.tag() {
+                if let Some(tags_title) = tags.title() {
+                    title = Some(tags_title);
+                }
+            }
+        }
+
+        let title = title.unwrap_or_else(|| "<unknown>".into());
+
         Song {
             path,
-            display_name,
+            title,
         }
     }
 }
@@ -116,7 +128,7 @@ impl eframe::App for App {
 
                     if let Some(album) = self.current_album.as_ref() {
                         for song in &album.songs {
-                            ui.label(&song.display_name);
+                            ui.label(&song.title);
                         }
                     }
                 });
