@@ -1,8 +1,9 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 use std::sync::Arc;
 
 use egui::{Color32, ViewportId};
 use rfd::FileDialog;
+use rodio::Source;
 
 pub struct Song {
     path: PathBuf,
@@ -38,6 +39,8 @@ pub struct Album {
 pub struct AudioPlayback {
     stream_handle: rodio::OutputStream,
     sink: rodio::Sink,
+    /// Keeps track of which durations map to which songs.
+    duration_map: Vec<Duration>,
 }
 
 impl AudioPlayback {
@@ -47,7 +50,8 @@ impl AudioPlayback {
         
         Some(AudioPlayback {
             stream_handle,
-            sink
+            sink,
+            duration_map: Vec::new(),
         })
     }
 }
@@ -55,6 +59,9 @@ impl AudioPlayback {
 pub struct App {
     current_album: Option<Album>,
     playback: Option<AudioPlayback>,
+
+    // Index of the last song we were playing.
+    last_playing_idx: isize,
 }
 
 impl App {
@@ -75,6 +82,7 @@ impl App {
         App {
             current_album: None,
             playback: AudioPlayback::open(),
+            last_playing_idx: -1,
         }
     }
 
@@ -84,14 +92,24 @@ impl App {
 
         playback.sink.clear();
 
+        playback.duration_map.clear();
+        let mut total_duration = Duration::ZERO;
+
         for song in &album.songs {
             // TODO: Report errors somehow?
             let Ok(file) = std::fs::File::open(&song.path) else { continue; };
             let Ok(decoder) = rodio::Decoder::try_from(file) else {
                 continue;
             };
+
+            total_duration += decoder.total_duration().unwrap();
+            playback.duration_map.push(total_duration);
+
             playback.sink.append(decoder);
         }
+
+        // Force playing update
+        self.last_playing_idx = -1;
     }
 
     fn open_album(&mut self, path: &PathBuf) -> std::io::Result<()> {
@@ -132,6 +150,13 @@ impl App {
         let Some(playback) = self.playback.as_ref() else { return true; };
         playback.sink.is_paused()
     }
+
+    fn compute_playing_idx(&self) -> isize {
+        let Some(playback) = self.playback.as_ref() else { return -1 };
+        let Some(album) = self.current_album.as_ref() else { return -1 };
+
+        return (album.songs.len() - playback.sink.len()) as isize;
+    }
 }
 
 impl eframe::App for App {
@@ -150,6 +175,8 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
+
+        let current_playing_idx = self.compute_playing_idx();
 
         #[cfg(target_os = "windows")]
         crate::os::apply_window_transparency(_frame);
@@ -185,6 +212,14 @@ impl eframe::App for App {
                     }
 
                     if let Some(album) = self.current_album.as_ref() {
+                        if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
+                            ui.horizontal(|ui| {
+                                ui.label("Now Playing: ");
+                                let title = &album.songs[current_playing_idx as usize].title;
+                                ui.label(title);
+                            });
+                        }
+
                         for song in &album.songs {
                             ui.label(&song.title);
                         }
@@ -195,5 +230,8 @@ impl eframe::App for App {
                     ctx.send_viewport_cmd_to(ViewportId::ROOT, egui::ViewportCommand::Close);
                 }
             });
+
+        ctx.request_repaint();
+        self.last_playing_idx = current_playing_idx;
     }
 }
