@@ -249,10 +249,23 @@ impl eframe::App for App {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default()
-                .fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127)))
+                .fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127))
+                .inner_margin(3.0)
+            )
             .show(ctx, |ui| {
-
-        });
+                ctx.style_mut(|style| {
+                    style.visuals.override_text_color = Some(Color32::WHITE);
+                });
+                if let Some(album) = self.current_album.as_ref() {
+                    if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
+                        let song = &album.songs[current_playing_idx as usize];
+                        ui.heading(&song.title);
+                        if let Some(artist) = &song.artist { ui.label(artist); }
+                        if let Some(album) = &song.album { ui.label(album); }
+                    }
+                }
+            }
+        );
 
         // TODO:
         // It would be ideal if we could defer the other viewport, but this
