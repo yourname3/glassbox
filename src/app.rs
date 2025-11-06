@@ -81,6 +81,9 @@ impl App {
     fn play_album(&mut self) {
         let Some(playback) = self.playback.as_mut() else { return; };
         let Some(album) = self.current_album.as_ref() else { return; };
+
+        playback.sink.clear();
+
         for song in &album.songs {
             // TODO: Report errors somehow?
             let Ok(file) = std::fs::File::open(&song.path) else { continue; };
@@ -109,6 +112,8 @@ impl App {
         self.current_album = Some(Album {
             songs
         });
+
+        self.play_album();
 
         Ok(())
     }
@@ -170,7 +175,7 @@ impl eframe::App for App {
                     if ui.button("Open").clicked() {
                         if let Some(album) = FileDialog::new().pick_folder() {
                             self.open_album(&album);
-                            self.play_album();
+                            
                         }
                     }
 
