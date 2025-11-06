@@ -112,6 +112,21 @@ impl App {
 
         Ok(())
     }
+
+    fn pause(&mut self) {
+        let Some(playback) = self.playback.as_mut() else { return };
+        playback.sink.pause();
+    }
+
+    fn resume(&mut self) {
+        let Some(playback) = self.playback.as_mut() else { return };
+        playback.sink.play();
+    }
+
+    fn is_paused(&self) -> bool {
+        let Some(playback) = self.playback.as_ref() else { return true; };
+        playback.sink.is_paused()
+    }
 }
 
 impl eframe::App for App {
@@ -157,6 +172,11 @@ impl eframe::App for App {
                             self.open_album(&album);
                             self.play_album();
                         }
+                    }
+
+                    let paused = self.is_paused();
+                    if ui.button(if paused { "Play" } else { "Pause" }).clicked() {
+                        if paused { self.resume(); } else { self.pause(); }
                     }
 
                     if let Some(album) = self.current_album.as_ref() {
