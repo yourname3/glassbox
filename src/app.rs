@@ -6,21 +6,29 @@ use egui::{Color32, ViewportId};
 use rfd::FileDialog;
 use rodio::Source;
 
+use std::fmt::Write;
+
 pub struct Song {
     path: PathBuf,
 
     title: String,
+    album: Option<String>,
+    artist: Option<String>,
 }
 
 impl Song {
     pub fn new(path: PathBuf) -> Self {
         let mut title = path.file_name().map(|t| { t.to_string_lossy().to_string() });
+        let mut album = None;
+        let mut artist = None;
 
         if let Ok(tags) = taglib::File::new(&path) {
             if let Ok(tags) = tags.tag() {
                 if let Some(tags_title) = tags.title() {
                     title = Some(tags_title);
                 }
+                album = tags.album();
+                artist = tags.artist();
             }
         }
 
@@ -29,6 +37,8 @@ impl Song {
         Song {
             path,
             title,
+            album,
+            artist
         }
     }
 }
@@ -80,8 +90,22 @@ impl Discord {
     pub fn update_song(&mut self, song: Option<&Song>) {
         match song {
             Some(song) => {
+                let mut state = String::new();
+                if let Some(artist) = &song.artist { write!(state, "{artist}").unwrap(); }
+                if let Some(album) = &song.album {
+                    // Discord does not appear to support newlines in the state,
+                    // so we separate with a hypen.
+                    if state.len() > 0 { write!(state, " - ").unwrap(); }
+                    write!(state, "{album}").unwrap();
+                }
+
                 let _ = self.client.set_activity(activity::Activity::new()
                     .details(&song.title)
+                    .state(&state)
+                    // TODO: Add .timestamps() for more.
+
+                    // Show the song name as the status display
+                    .status_display_type(activity::StatusDisplayType::Details)
                     .activity_type(activity::ActivityType::Listening)
                 );
             }
