@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.51", features = ["derive"] }
+discord-rich-presence = "1.0.0"
 eframe = "0.33.0"
 egui = "0.33.0"
 env_logger = "0.11.8"

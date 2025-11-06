@@ -1,6 +1,7 @@
 use std::{path::PathBuf, time::Duration};
 use std::sync::Arc;
 
+use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
 use egui::{Color32, ViewportId};
 use rfd::FileDialog;
 use rodio::Source;
@@ -56,12 +57,52 @@ impl AudioPlayback {
     }
 }
 
+pub struct Discord {
+    client: DiscordIpcClient,
+}
+
+impl Discord {
+    const CLIENT_ID: &str = "1436060096294682758";
+
+    pub fn open() -> Option<Self> {
+        let mut client = discord_rich_presence::DiscordIpcClient::new(Self::CLIENT_ID);
+        // TODO: Button for reconnecting? Maybe just a "enable discord" toggle?
+        client.connect().ok()?;
+
+        let _ = client.set_activity(activity::Activity::new()
+            .details("Nothing playing")
+            .activity_type(activity::ActivityType::Listening)
+        );
+
+        Some(Discord { client })
+    }
+
+    pub fn update_song(&mut self, song: Option<&Song>) {
+        match song {
+            Some(song) => {
+                let _ = self.client.set_activity(activity::Activity::new()
+                    .details(&song.title)
+                    .activity_type(activity::ActivityType::Listening)
+                );
+            }
+            None => {
+                let _ = self.client.set_activity(activity::Activity::new()
+                    .details("Nothing playing")
+                    .activity_type(activity::ActivityType::Listening)
+                );
+            }
+        }
+    }
+}
+
 pub struct App {
     current_album: Option<Album>,
     playback: Option<AudioPlayback>,
 
     // Index of the last song we were playing.
     last_playing_idx: isize,
+
+    discord: Option<Discord>,
 }
 
 impl App {
@@ -83,6 +124,7 @@ impl App {
             current_album: None,
             playback: AudioPlayback::open(),
             last_playing_idx: -1,
+            discord: Discord::open(),
         }
     }
 
@@ -222,6 +264,17 @@ impl eframe::App for App {
 
                         for song in &album.songs {
                             ui.label(&song.title);
+                        }
+
+                        if current_playing_idx != self.last_playing_idx {
+                            let song = if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
+                                Some(&album.songs[current_playing_idx as usize])
+                            }
+                            else { None };
+
+                            if let Some(discord) = self.discord.as_mut() {
+                                discord.update_song(song);
+                            }
                         }
                     }
                 });
