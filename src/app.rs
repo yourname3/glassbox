@@ -35,8 +35,26 @@ pub struct Album {
     songs: Vec<Song>,
 }
 
+pub struct AudioPlayback {
+    stream_handle: rodio::OutputStream,
+    sink: rodio::Sink,
+}
+
+impl AudioPlayback {
+    pub fn open() -> Option<Self> {
+        let stream_handle = rodio::OutputStreamBuilder::open_default_stream().ok()?;
+        let sink = rodio::Sink::connect_new(stream_handle.mixer());
+        
+        Some(AudioPlayback {
+            stream_handle,
+            sink
+        })
+    }
+}
+
 pub struct App {
-    current_album: Option<Album>
+    current_album: Option<Album>,
+    playback: Option<AudioPlayback>,
 }
 
 impl App {
@@ -56,6 +74,20 @@ impl App {
         // }
         App {
             current_album: None,
+            playback: AudioPlayback::open(),
+        }
+    }
+
+    fn play_album(&mut self) {
+        let Some(playback) = self.playback.as_mut() else { return; };
+        let Some(album) = self.current_album.as_ref() else { return; };
+        for song in &album.songs {
+            // TODO: Report errors somehow?
+            let Ok(file) = std::fs::File::open(&song.path) else { continue; };
+            let Ok(decoder) = rodio::Decoder::try_from(file) else {
+                continue;
+            };
+            playback.sink.append(decoder);
         }
     }
 
@@ -123,6 +155,7 @@ impl eframe::App for App {
                     if ui.button("Open").clicked() {
                         if let Some(album) = FileDialog::new().pick_folder() {
                             self.open_album(&album);
+                            self.play_album();
                         }
                     }
 

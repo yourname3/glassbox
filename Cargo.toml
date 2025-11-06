@@ -11,6 +11,7 @@ env_logger = "0.11.8"
 log = "0.4.28"
 raw-window-handle = "0.6.2"
 rfd = "0.15.4"
+rodio = "0.21.1"
 taglib = "1.0.0"
 
 [dependencies.windows]
