@@ -35,6 +35,8 @@ fn main() -> eframe::Result {
         native_options,
         Box::new(|cc| {
             let app = Box::new(App::new(cc));
+
+            egui_extras::install_image_loaders(&cc.egui_ctx);
             
             Ok(app)
         }),
