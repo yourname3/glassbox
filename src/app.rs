@@ -403,15 +403,15 @@ impl eframe::App for App {
                 // I think this will work?
                 let total_width = ui.available_width();
 
+                let mut album_cover = None;
+
                 ctx.style_mut(|style| {
                     style.visuals.override_text_color = Some(Color32::WHITE);
                 });
                 if let Some(album) = self.current_album.as_ref() {
                     if let Some(cover) = &album.album_cover {
-                        log::info!("draw album cover!");
-                        let cover = egui::Image::from_bytes("bytes://album_cover.png", cover.clone())
-                            .fit_to_exact_size(egui::vec2(100.0, 100.0));
-                        ui.add(cover);
+                        album_cover = Some(egui::Image::from_bytes("bytes://album_cover.png", cover.clone())
+                            .fit_to_exact_size(egui::vec2(100.0, 100.0)));
                     }
 
                     if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
@@ -445,7 +445,11 @@ impl eframe::App for App {
                 painter.line(left, (2.0, Color32::from_rgba_unmultiplied(230, 230, 230, 255)));
                 painter.line(right, (2.0, Color32::from_rgba_unmultiplied(143, 143, 143, 255)));
 
-                
+                if let Some(cover) = album_cover {
+                    // Draw the album cover over the big line.
+                    // I guess we could also draw the line to the side...
+                    cover.paint_at(ui, egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 100.0)));
+                }
             }
         );
 
