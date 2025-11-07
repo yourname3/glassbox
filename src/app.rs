@@ -411,7 +411,12 @@ impl eframe::App for App {
                 if let Some(album) = self.current_album.as_ref() {
                     if let Some(cover) = &album.album_cover {
                         album_cover = Some(egui::Image::from_bytes("bytes://album_cover.png", cover.clone())
-                            .fit_to_exact_size(egui::vec2(100.0, 100.0)));
+                            .max_size(egui::vec2(100.0, 100.0))
+                            .fit_to_exact_size(egui::vec2(100.0, 100.0))
+                            .texture_options(egui::TextureOptions::LINEAR)
+                            .corner_radius(5.0)
+                            .show_loading_spinner(true)
+                        );
                     }
 
                     if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
