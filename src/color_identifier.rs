@@ -76,6 +76,24 @@ fn hsv_to_rgb(hsv: Vec3) -> Vec3 {
     }
 }
 
+fn adjust_hsv_fn(hsv: Vec3) -> Vec3 {
+    (hsv.0, hsv.1, 0.3 * hsv.2 + 0.7)
+}
+
+fn adjust_hsv(color: Color32) -> Color32 {
+    let as_f32 = (color.r() as f32 / 255.0, color.g() as f32 / 255.0, color.b() as f32 / 255.0);
+    let hsv = rgb_to_hsv(as_f32);
+    let hsv = adjust_hsv_fn(hsv);
+    let rgb = hsv_to_rgb(hsv);
+
+    Color32::from_rgba_unmultiplied(
+        (rgb.0 * 255.0) as u8,
+        (rgb.1 * 255.0) as u8,
+        (rgb.2 * 255.0) as u8,
+        255
+    )
+}
+
 pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
     let fg = Color32::WHITE;
     let bg = Color32::WHITE;
@@ -107,8 +125,8 @@ pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
         let hsv = rgb_to_hsv(as_f32);
 
         // Score: we want close to the average sat/val. But, we want to bias
-        // towards higher sat (in particular) and val as well.
-        let score = hsv.1 * 1.5 + hsv.2
+        // towards higher sat and val as well.
+        let score = hsv.1 * 0.4 + hsv.2 * 0.4
             - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
         if score > best_score {
             best = *pixel;
@@ -141,7 +159,7 @@ pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
 
         //let score = hue_dif * 2.0 + hsv.1 + hsv.2 * 0.5;
         //let score = hue_dif * 2.0 - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
-        let score = hue_dif * 4.0 + hsv.1 * 1.5 + hsv.2
+        let score = hue_dif * 1.0 + hsv.1 * 0.2 + hsv.2 * 0.2
             - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
         if score > best_score {
             complement = *pixel;
@@ -149,7 +167,7 @@ pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
         }
     }
 
-    return (best, complement);
+    return (adjust_hsv(best), adjust_hsv(complement));
 }
 
 pub const FG_DEFAULT: Color32 = Color32::from_rgba_unmultiplied_const(143, 143, 143, 255);
