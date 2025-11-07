@@ -75,28 +75,52 @@ pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
     let fg = Color32::WHITE;
     let bg = Color32::WHITE;
 
-    let mut best_hsv = (0.0, 0.0, 0.0);
-    let mut best = Color32::GRAY;
-
-    // First pass: identify the pixel with highest saturation, then highest
-    // value.
+    // First-first pass: Identify the most common value/saturation amount in
+    // the image.
+    let mut avg_hsv = (0.0, 0.0, 0.0);
     for pixel in &image.pixels {
         let as_f32 = (pixel.r() as f32 / 255.0, pixel.g() as f32 / 255.0, pixel.b() as f32 / 255.0);
         let hsv = rgb_to_hsv(as_f32);
-        if hsv.1 > best_hsv.1 {
-            best_hsv = hsv;
+
+        avg_hsv.0 += hsv.0;
+        avg_hsv.1 += hsv.1;
+        avg_hsv.2 += hsv.2;
+    }
+    let denom = image.pixels.len() as f32;
+    avg_hsv.0 /= denom;
+    avg_hsv.1 /= denom;
+    avg_hsv.2 /= denom;
+
+    let mut best_hsv = (0.0, 0.0, 0.0);
+    let mut best = Color32::GRAY;
+    let mut best_score = -2.0;
+
+    // First pass: identify the pixel with best (?) saturation/value match (?)
+    for pixel in &image.pixels {
+        let as_f32 = (pixel.r() as f32 / 255.0, pixel.g() as f32 / 255.0, pixel.b() as f32 / 255.0);
+        let hsv = rgb_to_hsv(as_f32);
+
+        let score = -(hsv.1 - avg_hsv.1).abs() + -(hsv.2 - avg_hsv.2).abs();
+        if score > best_score {
             best = *pixel;
-        }   
-        else if hsv.1 == best_hsv.1 && hsv.2 > best_hsv.2 {
+            best_score = score;
             best_hsv = hsv;
-            best = *pixel;
         }
+
+        // if hsv.1 > best_hsv.1 {
+        //     best_hsv = hsv;
+        //     best = *pixel;
+        // }   
+        // else if hsv.1 == best_hsv.1 && hsv.2 > best_hsv.2 {
+        //     best_hsv = hsv;
+        //     best = *pixel;
+        // }
     }
 
     let mut complement = Color32::GRAY;
-    let mut best_score = 0.0;
+    let mut best_score = -2.0;
 
-    // Second pass: Identify the pixel with highest saturation + value with
+    // Second pass: Identify the pixel with best other-score and
     // a significant change in hue.
     for pixel in &image.pixels {
         let as_f32 = (pixel.r() as f32 / 255.0, pixel.g() as f32 / 255.0, pixel.b() as f32 / 255.0);
@@ -106,7 +130,8 @@ pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
         // Hue is circular, so differences of ~1 are actually small.
         let hue_dif = 0.5 - (hue_dif - 0.5).abs();
 
-        let score = hue_dif * 2.0 + hsv.1 + hsv.2 * 0.5;
+        //let score = hue_dif * 2.0 + hsv.1 + hsv.2 * 0.5;
+        let score = hue_dif * 2.0 - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
         if score > best_score {
             complement = *pixel;
             best_score = score;
