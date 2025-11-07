@@ -9,8 +9,10 @@ use rodio::Source;
 
 use std::fmt::Write;
 
+const DISPLAY_BUFFER_SIZE: usize = 2048;
+
 pub struct TapOutput {
-    contents: [AtomicU32; 4096],
+    contents: [AtomicU32; DISPLAY_BUFFER_SIZE],
     write_ptr: AtomicUsize,
 }
 
@@ -28,7 +30,7 @@ impl TapOutput {
         let as_u32: u32 = f32::to_bits(sample);
 
         let dest = self.write_ptr.load(Ordering::Relaxed);
-        self.write_ptr.store((dest + 1) % 4096, Ordering::Relaxed);
+        self.write_ptr.store((dest + 1) % DISPLAY_BUFFER_SIZE, Ordering::Relaxed);
 
         self.contents[dest].store(as_u32, Ordering::Relaxed);
     }
@@ -36,10 +38,10 @@ impl TapOutput {
     pub fn read_in_order(&self) -> Vec<f32> {
         let mut output = Vec::new();
         // The oldest value that was written is the one right after the write_ptr.
-        let start = self.write_ptr.load(Ordering::Relaxed) + 1 % 4096;
+        let start = self.write_ptr.load(Ordering::Relaxed) + 1 % DISPLAY_BUFFER_SIZE;
 
-        for i in 0..4096 {
-            let as_bits = self.contents[(start + i) % 4096].load(Ordering::Relaxed);
+        for i in 0..DISPLAY_BUFFER_SIZE {
+            let as_bits = self.contents[(start + i) % DISPLAY_BUFFER_SIZE].load(Ordering::Relaxed);
             output.push(f32::from_bits(as_bits));
         }
 
@@ -348,7 +350,8 @@ impl eframe::App for App {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::default()
-                .fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127))
+                //.fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127))
+                .fill(Color32::TRANSPARENT)
                 .inner_margin(3.0)
             )
             .show(ctx, |ui| {
