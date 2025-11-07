@@ -269,6 +269,10 @@ impl eframe::App for App {
                         if let Some(album) = &song.album { ui.label(album); }
                     }
                 }
+
+                let painter = ui.painter();
+                painter.line(vec![egui::pos2(0.0, 50.0), egui::pos2(2.0, 51.0), egui::pos2(4.0, 54.0)], 
+                    (2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 255)));
             }
         );
 
