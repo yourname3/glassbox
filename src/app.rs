@@ -321,6 +321,9 @@ impl App {
             }
         }
 
+        // Clear the loaded texture so that we will reload it.
+        self.current_album_art = None;
+
         let possible_cover_path = path.join("cover.png");
         let mut album_cover = None;
         log::info!("testing for cover.png @ {:?}", possible_cover_path);
