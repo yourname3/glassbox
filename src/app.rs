@@ -247,6 +247,11 @@ impl eframe::App for App {
         #[cfg(target_os = "windows")]
         crate::os::apply_window_transparency(_frame);
 
+        let monitor_size = ctx.input(|i| i.viewport().monitor_size);
+        if let Some(size) = monitor_size{
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(size.x, 100.0)));
+        }
+
         egui::CentralPanel::default()
             .frame(egui::Frame::default()
                 .fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127))
