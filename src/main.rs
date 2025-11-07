@@ -2,6 +2,7 @@
 
 mod app;
 mod os;
+mod color_identifier;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]

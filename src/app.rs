@@ -10,6 +10,8 @@ use rodio::Source;
 
 use std::fmt::Write;
 
+use crate::color_identifier;
+
 const DISPLAY_BUFFER_SIZE: usize = 2048;
 
 pub struct TapOutputChannel {
@@ -158,6 +160,10 @@ pub struct Album {
 
     // The cover.png for the folder, if there is one.
     album_cover: Option<egui::ColorImage>,
+
+    // Colors for the album cover, if there was an album cover.
+    fg_color: Color32,
+    bg_color: Color32,
 }
 
 pub struct AudioPlayback {
@@ -336,9 +342,13 @@ impl App {
             }
         }
 
+        let (fg_color, bg_color) = color_identifier::identify_colors(album_cover.as_ref());
+
         self.current_album = Some(Album {
             songs,
-            album_cover
+            album_cover,
+            fg_color,
+            bg_color,
         });
 
         self.play_album();
@@ -407,11 +417,16 @@ impl eframe::App for App {
                 let total_width = ui.available_width();
 
                 let mut album_cover = None;
+                let mut fg = color_identifier::FG_DEFAULT;
+                let mut bg = color_identifier::BG_DEFAULT;
 
                 ctx.style_mut(|style| {
                     style.visuals.override_text_color = Some(Color32::WHITE);
                 });
                 if let Some(album) = self.current_album.as_ref() {
+                    fg = album.fg_color;
+                    bg = album.bg_color;
+
                     if let None = self.current_album_art && let Some(cover) = &album.album_cover {
                         let texture = ctx.load_texture(
                             "album-cover",
@@ -470,8 +485,8 @@ impl eframe::App for App {
                 let right = samples_to_points(&samples[1]);
 
                 let painter = ui.painter();
-                painter.line(left, (2.0, Color32::from_rgba_unmultiplied(230, 230, 230, 255)));
-                painter.line(right, (2.0, Color32::from_rgba_unmultiplied(143, 143, 143, 255)));
+                painter.line(left, (2.0, bg));
+                painter.line(right, (2.0, fg));
 
                 if let Some(cover) = album_cover {
                     // Draw the album cover over the big line.

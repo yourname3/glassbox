@@ -1,0 +1,129 @@
+use egui::{Color32, ColorImage};
+
+type Vec3 = (f32, f32, f32);
+
+fn min(a: f32, b: f32, c: f32) -> f32 {
+    if a < b {
+        if a < c { return a; }
+        return c;
+    }
+    if b < c { return b; }
+    return c;
+}
+
+fn max(a: f32, b: f32, c: f32) -> f32 {
+    if a > b {
+        if a > c { return a; }
+        return c;
+    }
+    if b > c { return b; }
+    return c;
+}
+
+fn rgb_to_hsv(rgb: Vec3) -> Vec3 {
+    let r = rgb.0; let g = rgb.1; let b = rgb.2;
+
+    let min = min(rgb.0, rgb.1, rgb.2);
+    let max = max(rgb.0, rgb.1, rgb.2);
+
+    let v = max;
+    let delta = max - min;
+    let mut s = 0.0;
+    let mut h = 0.0;
+
+    if max != 0.0 {
+        s = delta / max;
+    }
+    else { return (h, s, v); }
+    if      r == max { h = (g - b) / delta; }
+    else if g == max { h = 2.0 + (b - r) / delta; }
+    else             { h = 4.0 + (r - g) / delta; }
+
+    h = h / 6.0;
+
+    (h, s, v)
+}
+
+fn hsv_to_rgb(hsv: Vec3) -> Vec3 {
+    let mut h = hsv.0;
+    let s = hsv.1;
+    let v = hsv.2;
+
+    if s == 0.0 {
+        return (0.0, 0.0, 0.0);
+    }
+
+    h *= 6.0;
+    let i = h.floor();
+    let f = h - i;
+    let p = v * (1.0 - s);
+    let q = v * (1.0 - s * f);
+    let t = v * (1.0 - s * (1.0 - f));
+
+    match i {
+        0.0 => (v, t, p),
+        1.0 => (q, v, p),
+        2.0 => (p, v, t),
+        3.0 => (p, q, v),
+        4.0 => (t, p, v),
+        5.0 => (v, p, q),
+        _ => unreachable!()
+    }
+}
+
+pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
+    let fg = Color32::WHITE;
+    let bg = Color32::WHITE;
+
+    let mut best_hsv = (0.0, 0.0, 0.0);
+    let mut best = Color32::GRAY;
+
+    // First pass: identify the pixel with highest saturation, then highest
+    // value.
+    for pixel in &image.pixels {
+        let as_f32 = (pixel.r() as f32 / 255.0, pixel.g() as f32 / 255.0, pixel.b() as f32 / 255.0);
+        let hsv = rgb_to_hsv(as_f32);
+        if hsv.1 > best_hsv.1 {
+            best_hsv = hsv;
+            best = *pixel;
+        }   
+        else if hsv.1 == best_hsv.1 && hsv.2 > best_hsv.2 {
+            best_hsv = hsv;
+            best = *pixel;
+        }
+    }
+
+    let mut complement = Color32::GRAY;
+    let mut best_score = 0.0;
+
+    // Second pass: Identify the pixel with highest saturation + value with
+    // a significant change in hue.
+    for pixel in &image.pixels {
+        let as_f32 = (pixel.r() as f32 / 255.0, pixel.g() as f32 / 255.0, pixel.b() as f32 / 255.0);
+        let hsv = rgb_to_hsv(as_f32);
+
+        let hue_dif = (hsv.0 - best_hsv.0).rem_euclid(1.0);
+        // Hue is circular, so differences of ~1 are actually small.
+        let hue_dif = 0.5 - (hue_dif - 0.5).abs();
+
+        let score = hue_dif * 2.0 + hsv.1 + hsv.2 * 0.5;
+        if score > best_score {
+            complement = *pixel;
+            best_score = score;
+        }
+    }
+
+    return (best, complement);
+}
+
+pub const FG_DEFAULT: Color32 = Color32::from_rgba_unmultiplied_const(143, 143, 143, 255);
+pub const BG_DEFAULT: Color32 = Color32::from_rgba_unmultiplied_const(230, 230, 230, 255);
+
+pub fn identify_colors(image: Option<&ColorImage>) -> (Color32, Color32) {
+    if let Some(img) = image {
+        return identify_colors_in(img);
+    }
+
+    // Defaults
+    (FG_DEFAULT, BG_DEFAULT)
+}
