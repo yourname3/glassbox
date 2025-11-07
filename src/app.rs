@@ -11,12 +11,16 @@ use std::fmt::Write;
 
 const DISPLAY_BUFFER_SIZE: usize = 2048;
 
-pub struct TapOutput {
+pub struct TapOutputChannel {
     contents: [AtomicU32; DISPLAY_BUFFER_SIZE],
     write_ptr: AtomicUsize,
 }
 
-impl TapOutput {
+pub struct TapOutput {
+    channels: [TapOutputChannel; 2]
+}
+
+impl TapOutputChannel {
     pub fn new() -> Self {
         Self {
             contents: core::array::from_fn(|_| AtomicU32::new(f32::to_bits(0.0))),
@@ -24,9 +28,7 @@ impl TapOutput {
         }
     }
 
-    pub fn write(&self, sample: f32, channel: usize) {
-        if channel > 0 { return; }
-
+    pub fn write(&self, sample: f32) {
         let as_u32: u32 = f32::to_bits(sample);
 
         let dest = self.write_ptr.load(Ordering::Relaxed);
@@ -46,6 +48,23 @@ impl TapOutput {
         }
 
         output
+    }
+}
+
+impl TapOutput {
+    pub fn new() -> Self {
+        TapOutput {
+            channels: [TapOutputChannel::new(), TapOutputChannel::new()]
+        }
+    }
+
+    pub fn write(&self, sample: f32, channel: usize) {
+        if channel > self.channels.len() { return; }
+        self.channels[channel].write(sample);
+    }
+
+    pub fn read_in_order(&self) -> [Vec<f32>; 2] {
+        [self.channels[0].read_in_order(), self.channels[1].read_in_order()]
     }
 }
 
@@ -373,14 +392,25 @@ impl eframe::App for App {
                 // TODO: Maybe keep this as a preallocated buffer and re-use it
                 // each frame
                 let samples = self.tap_output.read_in_order();
-                let mut points = Vec::new();
-                let x_factor = total_width / (samples.len() as f32);
-                for (idx, sample) in samples.iter().enumerate() {
-                    points.push(egui::pos2(idx as f32 * x_factor, sample * 50.0 + 50.0));
-                }
+                
+                let samples_to_points = |samples: &Vec<_>| {
+                    let mut points = Vec::new();
+
+                    let x_factor = total_width / (samples.len() as f32);
+                    
+                    for (idx, sample) in samples.iter().enumerate() {
+                        points.push(egui::pos2(idx as f32 * x_factor, sample * 50.0 + 50.0));
+                    }
+
+                    points
+                };
+
+                let left = samples_to_points(&samples[0]);
+                let right = samples_to_points(&samples[1]);
 
                 let painter = ui.painter();
-                painter.line(points, (2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 255)));
+                painter.line(left, (2.0, Color32::from_rgba_unmultiplied(230, 230, 230, 255)));
+                painter.line(right, (2.0, Color32::from_rgba_unmultiplied(143, 143, 143, 255)));
             }
         );
 
