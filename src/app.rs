@@ -157,7 +157,7 @@ pub struct Album {
     songs: Vec<Song>,
 
     // The cover.png for the folder, if there is one.
-    album_cover: Option<Arc<[u8]>>,
+    album_cover: Option<egui::ColorImage>,
 }
 
 pub struct AudioPlayback {
@@ -242,6 +242,8 @@ pub struct App {
     discord: Option<Discord>,
 
     tap_output: Arc<TapOutput>,
+
+    current_album_art: Option<egui::TextureHandle>,
 }
 
 impl App {
@@ -266,6 +268,7 @@ impl App {
             discord: Discord::open(),
 
             tap_output: Arc::new(TapOutput::new()),
+            current_album_art: None,
         }
     }
 
@@ -315,23 +318,23 @@ impl App {
         let possible_cover_path = path.join("cover.png");
         let mut album_cover = None;
         log::info!("testing for cover.png @ {:?}", possible_cover_path);
-        let img = std::fs::File::open(possible_cover_path);
-        if let Ok(mut img) = img {
-            let mut bytes = Vec::new();
-            if let Ok(_) = img.read_to_end(&mut bytes) {
-                let bytes: Arc<[u8]> = bytes.into();
-                album_cover = Some(bytes);
+
+        let img = image::ImageReader::open(possible_cover_path);
+        if let Ok(img) = img {
+            if let Ok(decode) = img.decode() {
+
+                let rgba = decode.to_rgba8();
+                let size = [rgba.width() as _, rgba.height() as _];
+                let pixels = rgba.as_flat_samples();
+
+                // Load the album art into a ColorImage so that we can process
+                // its pixel data.
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(size,
+                    pixels.as_slice());
+
+                album_cover = Some(color_image);
             }
         }
-        // let img = image::ImageReader::open(possible_cover_path);
-        // if let Ok(img) = img {
-        //     if let Ok(decode) = img.decode() {
-        //         let bytes = decode.into_bytes();
-        //         let bytes = bytes.into_boxed_slice();
-        //         let bytes: Arc<[u8]> = bytes.into();
-        //         album_cover = Some(bytes);
-        //     }
-        // }
 
         self.current_album = Some(Album {
             songs,
@@ -409,15 +412,35 @@ impl eframe::App for App {
                     style.visuals.override_text_color = Some(Color32::WHITE);
                 });
                 if let Some(album) = self.current_album.as_ref() {
-                    if let Some(cover) = &album.album_cover {
-                        album_cover = Some(egui::Image::from_bytes("bytes://album_cover.png", cover.clone())
-                            .max_size(egui::vec2(100.0, 100.0))
-                            .fit_to_exact_size(egui::vec2(100.0, 100.0))
-                            .texture_options(egui::TextureOptions::LINEAR)
-                            .corner_radius(5.0)
-                            .show_loading_spinner(true)
+                    if let None = self.current_album_art && let Some(cover) = &album.album_cover {
+                        let texture = ctx.load_texture(
+                            "album-cover",
+                            // TODO: This can probably be some sort of take() instead.
+                            cover.clone(),
+                            egui::TextureOptions::LINEAR
                         );
+                        self.current_album_art = Some(texture);
+
+                        
                     }
+
+                    if let Some(cover) = &self.current_album_art {
+                        let cover = egui::Image::from_texture((cover.id(), cover.size_vec2()))
+                            .corner_radius(5.0);
+                        album_cover = Some(cover);
+                    }
+                    
+
+                    // if let Some(cover) = &album.album_cover {
+                    //     let cover = egui::Image::from_bytes("bytes://album_cover.png", cover.clone())
+                    //         .max_size(egui::vec2(100.0, 100.0))
+                    //         .fit_to_exact_size(egui::vec2(100.0, 100.0))
+                    //         .texture_options(egui::TextureOptions::LINEAR)
+                    //         .corner_radius(5.0)
+                    //         .show_loading_spinner(true);
+                        
+                    //     album_cover = Some(cover);
+                    // }
 
                     if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
                         let song = &album.songs[current_playing_idx as usize];
