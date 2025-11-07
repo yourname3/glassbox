@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::{path::PathBuf, time::Duration};
 use std::sync::Arc;
 
@@ -7,6 +8,93 @@ use rfd::FileDialog;
 use rodio::Source;
 
 use std::fmt::Write;
+
+pub struct TapOutput {
+    contents: [AtomicU32; 4096],
+    write_ptr: AtomicUsize,
+}
+
+impl TapOutput {
+    pub fn new() -> Self {
+        Self {
+            contents: core::array::from_fn(|_| AtomicU32::new(f32::to_bits(0.0))),
+            write_ptr: 0.into(),
+        }
+    }
+
+    pub fn write(&self, sample: f32, channel: usize) {
+        if channel > 0 { return; }
+
+        let as_u32: u32 = f32::to_bits(sample);
+
+        let dest = self.write_ptr.load(Ordering::Relaxed);
+        self.write_ptr.store((dest + 1) % 4096, Ordering::Relaxed);
+
+        self.contents[dest].store(as_u32, Ordering::Relaxed);
+    }
+
+    pub fn read_in_order(&self) -> Vec<f32> {
+        let mut output = Vec::new();
+        // The oldest value that was written is the one right after the write_ptr.
+        let start = self.write_ptr.load(Ordering::Relaxed) + 1 % 4096;
+
+        for i in 0..4096 {
+            let as_bits = self.contents[(start + i) % 4096].load(Ordering::Relaxed);
+            output.push(f32::from_bits(as_bits));
+        }
+
+        output
+    }
+}
+
+pub struct Tap<S> {
+    inner: S,
+    output: Arc<TapOutput>,
+
+    cur_channel: usize,
+}
+
+impl<S> Tap<S> {
+    fn new(inner: S, output: Arc<TapOutput>) -> Self {
+        Tap {
+            inner,
+            output,
+
+            cur_channel: 0,
+        }
+    }
+}
+
+impl<S> Iterator for Tap<S>
+where
+    S: rodio::Source + Iterator<Item = rodio::Sample>,
+{
+    type Item = S::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let sample = self.inner.next()?;
+        
+        self.output.write(sample, self.cur_channel);
+        self.cur_channel = (self.cur_channel + 1) % self.channels() as usize;
+
+        Some(sample)
+    }
+}
+
+impl<S: rodio::Source> rodio::Source for Tap<S> {
+    fn channels(&self) -> u16 {
+        self.inner.channels()
+    }
+    fn sample_rate(&self) -> u32 {
+        self.inner.sample_rate()
+    }
+    fn total_duration(&self) -> Option<Duration> {
+        self.inner.total_duration()
+    }
+    fn current_span_len(&self) -> Option<usize> {
+        self.inner.current_span_len()
+    }
+}
 
 pub struct Song {
     path: PathBuf,
@@ -127,6 +215,8 @@ pub struct App {
     last_playing_idx: isize,
 
     discord: Option<Discord>,
+
+    tap_output: Arc<TapOutput>,
 }
 
 impl App {
@@ -149,6 +239,8 @@ impl App {
             playback: AudioPlayback::open(),
             last_playing_idx: -1,
             discord: Discord::open(),
+
+            tap_output: Arc::new(TapOutput::new()),
         }
     }
 
@@ -168,10 +260,12 @@ impl App {
                 continue;
             };
 
-            total_duration += decoder.total_duration().unwrap();
+            let tap = Tap::new(decoder, self.tap_output.clone());
+
+            total_duration += tap.total_duration().unwrap();
             playback.duration_map.push(total_duration);
 
-            playback.sink.append(decoder);
+            playback.sink.append(tap);
         }
 
         // Force playing update
@@ -248,7 +342,7 @@ impl eframe::App for App {
         crate::os::apply_window_transparency(_frame);
 
         let monitor_size = ctx.input(|i| i.viewport().monitor_size);
-        if let Some(size) = monitor_size{
+        if let Some(size) = monitor_size {
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(size.x, 100.0)));
         }
 
@@ -258,6 +352,9 @@ impl eframe::App for App {
                 .inner_margin(3.0)
             )
             .show(ctx, |ui| {
+                // I think this will work?
+                let total_width = ui.available_width();
+
                 ctx.style_mut(|style| {
                     style.visuals.override_text_color = Some(Color32::WHITE);
                 });
@@ -270,9 +367,17 @@ impl eframe::App for App {
                     }
                 }
 
+                // TODO: Maybe keep this as a preallocated buffer and re-use it
+                // each frame
+                let samples = self.tap_output.read_in_order();
+                let mut points = Vec::new();
+                let x_factor = total_width / (samples.len() as f32);
+                for (idx, sample) in samples.iter().enumerate() {
+                    points.push(egui::pos2(idx as f32 * x_factor, sample * 50.0 + 50.0));
+                }
+
                 let painter = ui.painter();
-                painter.line(vec![egui::pos2(0.0, 50.0), egui::pos2(2.0, 51.0), egui::pos2(4.0, 54.0)], 
-                    (2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 255)));
+                painter.line(points, (2.0, Color32::from_rgba_unmultiplied(255, 255, 255, 255)));
             }
         );
 
