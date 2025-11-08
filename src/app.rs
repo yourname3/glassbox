@@ -480,14 +480,17 @@ impl eframe::App for App {
                 // TODO: Maybe keep this as a preallocated buffer and re-use it
                 // each frame
                 let samples = self.tap_output.read_in_order();
+
+                let max_x = total_width - 10.0;
+                let min_x = 100.0 + 10.0;
                 
                 let samples_to_points = |samples: &Vec<_>| {
                     let mut points = Vec::new();
 
-                    let x_factor = total_width / (samples.len() as f32);
+                    let x_factor = (max_x - min_x) / (samples.len() as f32);
                     
                     for (idx, sample) in samples.iter().enumerate() {
-                        points.push(egui::pos2(idx as f32 * x_factor, sample * 50.0 + 50.0));
+                        points.push(egui::pos2(min_x + idx as f32 * x_factor, sample * 50.0 + 50.0));
                     }
 
                     points
