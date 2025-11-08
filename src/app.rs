@@ -10,7 +10,7 @@ use rodio::Source;
 
 use std::fmt::Write;
 
-use crate::color_identifier;
+use crate::color_identifier::{self, Palette};
 
 const DISPLAY_BUFFER_SIZE: usize = 2048;
 
@@ -174,8 +174,7 @@ pub struct Album {
     album_cover: Option<egui::ColorImage>,
 
     // Colors for the album cover, if there was an album cover.
-    fg_color: Color32,
-    bg_color: Color32,
+    palette: Palette,
 }
 
 pub struct AudioPlayback {
@@ -359,13 +358,12 @@ impl App {
             }
         }
 
-        let (fg_color, bg_color) = color_identifier::identify_colors(album_cover.as_ref());
+        let palette = color_identifier::identify_colors(album_cover.as_ref());
 
         self.current_album = Some(Album {
             songs,
             album_cover,
-            fg_color,
-            bg_color,
+            palette,
         });
 
         self.play_album();
@@ -434,8 +432,7 @@ impl eframe::App for App {
                 let total_width = ui.available_width();
 
                 let mut album_cover = None;
-                let mut fg = color_identifier::FG_DEFAULT;
-                let mut bg = color_identifier::BG_DEFAULT;
+                let mut palette = color_identifier::default();
 
                 // Allocate space for the album art so that the label()s go
                 // below it.
@@ -445,8 +442,7 @@ impl eframe::App for App {
                     style.visuals.override_text_color = Some(Color32::WHITE);
                 });
                 if let Some(album) = self.current_album.as_ref() {
-                    fg = album.fg_color;
-                    bg = album.bg_color;
+                    palette = album.palette;
 
                     if let None = self.current_album_art && let Some(cover) = &album.album_cover {
                         let texture = ctx.load_texture(
@@ -560,8 +556,14 @@ impl eframe::App for App {
                 painter.line(left.1, (3.0, Color32::from_gray(230)));
                 painter.line(right.1, (3.0, Color32::from_gray(230)));
 
-                painter.line(left.0, (4.0, bg));
-                painter.line(right.0, (4.0, fg));
+                painter.line(left.0, egui::epaint::PathStroke::new_uv(4.0, move |rect, uv| {
+                    let t = (uv.x - rect.left()) / rect.width();
+                    palette.fg_a.lerp_to_gamma(palette.fg_b, t)
+                }));
+                painter.line(right.0, egui::epaint::PathStroke::new_uv(4.0, move |rect, uv| {
+                    let t = (uv.x - rect.left()) / rect.width();
+                    palette.bg_a.lerp_to_gamma(palette.bg_b, t)
+                }));
 
                 if let Some(cover) = album_cover {
                     // Draw the album cover over the big line.
