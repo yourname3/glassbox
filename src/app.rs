@@ -4,7 +4,7 @@ use std::{path::PathBuf, time::Duration};
 use std::sync::Arc;
 
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
-use egui::{Color32, ViewportId};
+use egui::{Color32, Rect, ViewportId};
 use rfd::FileDialog;
 use rodio::Source;
 
@@ -552,14 +552,35 @@ impl eframe::App for App {
 
                 let painter = ui.painter();
 
-                let x_factor = (max_x - min_x) / (samples[0].len() as f32);
+                
+
+                let mut log_bins = Vec::new();
+                let log_bin_src = &samples[0];
+                let mut log_bin_count = 1;
+                let mut log_bin_count_exp = 1.0;
+                let mut log_bin_start = 0;
+                while log_bin_start + log_bin_count < (log_bin_src.len() / 2) {
+                    let mut total = 0.0;
+                    let mut div = 0.0;
+                    for i in log_bin_start..log_bin_start + log_bin_count {
+                        total += log_bin_src[i];
+                        div   += 1.0;
+                    }
+                    log_bins.push((total / div).ln_1p());
+                    log_bin_start += log_bin_count;
+                    log_bin_count_exp *= 1.1;
+                    log_bin_count = log_bin_count_exp as usize;
+                }
+
                 let mut max = 1.0;
-                for sample in &samples[0] {
+                for sample in &log_bins {
                     if *sample > max { max = *sample; }
                 }
-                for (idx, sample) in samples[0].iter().enumerate() {
+                let x_factor = (max_x - min_x) / (log_bins.len() as f32);
+                for (idx, sample) in log_bins.iter().enumerate() {
                     let point = egui::pos2(min_x + idx as f32 * x_factor, 50.0);
-                    painter.circle_filled(point, (sample / max) * 25.0, Color32::WHITE);
+                    painter.rect_filled(Rect::from_center_size(point, egui::vec2(3.0, sample * 50.0)), 2.0, Color32::WHITE);
+                    //painter.circle_filled(point, (sample) * 25.0, Color32::WHITE);
                 }
 
                 let stroke_bg_dark = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
