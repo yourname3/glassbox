@@ -415,7 +415,7 @@ impl eframe::App for App {
 
         let monitor_size = ctx.input(|i| i.viewport().monitor_size);
         if let Some(size) = monitor_size {
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(size.x, 100.0)));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(size.x, 200.0)));
         }
 
         egui::CentralPanel::default()
@@ -431,6 +431,10 @@ impl eframe::App for App {
                 let mut album_cover = None;
                 let mut fg = color_identifier::FG_DEFAULT;
                 let mut bg = color_identifier::BG_DEFAULT;
+
+                // Allocate space for the album art so that the label()s go
+                // below it.
+                ui.allocate_space(egui::vec2(100.0, 100.0));
 
                 ctx.style_mut(|style| {
                     style.visuals.override_text_color = Some(Color32::WHITE);
@@ -471,9 +475,42 @@ impl eframe::App for App {
 
                     if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
                         let song = &album.songs[current_playing_idx as usize];
-                        ui.heading(&song.title);
-                        if let Some(artist) = &song.artist { ui.label(artist); }
-                        if let Some(album) = &song.album { ui.label(album); }
+                        
+                        egui::Area::new(egui::Id::new("topwindow_song_info"))
+                            .fixed_pos((105.0, 5.0))
+                            .show(ctx, |ui| {
+                                egui::Frame::default()
+                                    .fill(Color32::from_hex("#2727275f").unwrap())
+                                    .corner_radius(5)
+                                    .inner_margin(5)
+                                    .outer_margin(0)
+                                    // TODO: Having some sort of text stroke/outline would be
+                                    // maybe preferable to this setup.
+                                    .show(ui, |ui| {
+                                        ui.heading(&song.title);
+                                    }
+                                );
+                            }
+                        );
+
+                        egui::Area::new(egui::Id::new("topwindow_artist_album"))
+                            .pivot(egui::Align2::LEFT_BOTTOM)
+                            .fixed_pos((105.0, 95.0))
+                            .show(ctx, |ui| {
+                                egui::Frame::default()
+                                    .fill(Color32::from_hex("#2727275f").unwrap())
+                                    .corner_radius(5)
+                                    .inner_margin(5)
+                                    .outer_margin(0)
+                                    // TODO: Having some sort of text stroke/outline would be
+                                    // maybe preferable to this setup.
+                                    .show(ui, |ui| {
+                                        if let Some(artist) = &song.artist { ui.label(artist); }
+                                        if let Some(album) = &song.album { ui.label(album); }
+                                    }
+                                );
+                            }
+                        );
                     }
                 }
 

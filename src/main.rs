@@ -17,7 +17,7 @@ fn main() -> eframe::Result {
         viewport: egui::ViewportBuilder::default()
             .with_always_on_top()
             .with_decorations(false)
-            .with_inner_size((800.0, 100.0))
+            .with_inner_size((800.0, 200.0))
             .with_position((0.0, 0.0))
             .with_transparent(true)
         ,
