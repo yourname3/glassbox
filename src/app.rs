@@ -568,7 +568,9 @@ impl eframe::App for App {
                         total += log_bin_src[i].abs();
                         div   += 1.0;
                     }
-                    log_bins.push((total / div).ln_1p());
+                    // The multiplication by 0.1 keeps most bins inside the 0-1
+                    // range.
+                    log_bins.push((0.1 * (total / div)).ln_1p());
                     log_bin_start += log_bin_count;
                     log_bin_count_exp *= 1.03;
                     log_bin_count = log_bin_count_exp as usize;
@@ -578,7 +580,7 @@ impl eframe::App for App {
                     self.smoothed_spectrogram.push(log_bins[i]);
                 }
                 for (a, b) in self.smoothed_spectrogram.iter_mut().zip(log_bins.iter()) {
-                    *a += (*b - *a) * 0.03;
+                    *a += (*b - *a) * 0.2;
                 }
 
                 let spectrogram = &self.smoothed_spectrogram;
@@ -588,10 +590,32 @@ impl eframe::App for App {
                     if *sample > max { max = *sample; }
                 }
 
+                // TODO: Stroke lines on the spectrogram ourselves?
+                // let stroke_dark_and_light = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
+                //     let t_x = (uv.x - rect.left()) / rect.width();
+                //     let t_y = (uv.y - rect.top()) / rect.height();
+                //     let gray = Color32::from_gray(230).lerp_to_gamma(Color32::from_gray(140), t_y);
+                //     palette.fg_a.lerp_to_gamma(palette.bg_b, t_x).lerp_to_gamma(gray, 2.0 * (0.5 - t_y).abs())
+                // });
+
+
                 let x_factor = (max_x - min_x) / (spectrogram.len() as f32);
                 for (idx, sample) in spectrogram.iter().enumerate() {
                     let point = egui::pos2(min_x + idx as f32 * x_factor, 50.0);
-                    painter.rect_filled(Rect::from_center_size(point, egui::vec2(10.0, sample * 50.0)), 2.0, Color32::WHITE);
+                    let t = idx as f32 / spectrogram.len() as f32;
+                    let color = palette.bg_a.lerp_to_gamma(palette.fg_b, t);
+                    let stroke_color = palette.fg_a.lerp_to_gamma(palette.bg_b, t);
+                    let alpha = ((*sample * 245.0) + 10.0).clamp(0.0, 255.0) as u8;
+                    
+                    let mut color = color.to_srgba_unmultiplied();
+                    color[3] = alpha;
+                    let color = egui::Color32::from_rgba_unmultiplied(color[0], color[1], color[2], color[3]);
+
+                    painter.rect(Rect::from_center_size(point, egui::vec2(10.0, sample * 50.0)),
+                        10.0 * sample,
+                        color,
+                        (2.0, stroke_color),
+                        egui::StrokeKind::Inside);
                     //painter.circle_filled(point, (sample) * 25.0, Color32::WHITE);
                 }
 
