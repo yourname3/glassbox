@@ -493,8 +493,8 @@ impl eframe::App for App {
                     
                     for (idx, sample) in samples.iter().enumerate() {
                         let point = egui::pos2(min_x + idx as f32 * x_factor, sample * 50.0 + 50.0);
-                        let high = point + egui::vec2(0.0, -1.0);
-                        let low = point + egui::vec2(0.0, 1.0);
+                        let high = point + egui::vec2(0.0, -1.5);
+                        let low = point + egui::vec2(0.0, 1.5);
 
                         points.push(point);
                         points_high.push(high);
@@ -515,8 +515,8 @@ impl eframe::App for App {
                 painter.line(left.1, (3.0, Color32::from_gray(230)));
                 painter.line(right.1, (3.0, Color32::from_gray(230)));
 
-                painter.line(left.0, (2.0, bg));
-                painter.line(right.0, (2.0, fg));
+                painter.line(left.0, (4.0, bg));
+                painter.line(right.0, (4.0, fg));
 
                 if let Some(cover) = album_cover {
                     // Draw the album cover over the big line.
