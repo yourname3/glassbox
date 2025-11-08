@@ -149,25 +149,25 @@ pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
 
     // Second pass: Identify the pixel with best other-score and
     // a significant change in hue.
-    for pixel in &image.pixels {
-        let as_f32 = (pixel.r() as f32 / 255.0, pixel.g() as f32 / 255.0, pixel.b() as f32 / 255.0);
-        let hsv = rgb_to_hsv(as_f32);
+    // for pixel in &image.pixels {
+    //     let as_f32 = (pixel.r() as f32 / 255.0, pixel.g() as f32 / 255.0, pixel.b() as f32 / 255.0);
+    //     let hsv = rgb_to_hsv(as_f32);
 
-        let hue_dif = (hsv.0 - best_hsv.0).rem_euclid(1.0);
-        // Hue is circular, so differences of ~1 are actually small.
-        let hue_dif = 0.5 - (hue_dif - 0.5).abs();
+    //     let hue_dif = (hsv.0 - best_hsv.0).rem_euclid(1.0);
+    //     // Hue is circular, so differences of ~1 are actually small.
+    //     let hue_dif = 0.5 - (hue_dif - 0.5).abs();
 
-        //let score = hue_dif * 2.0 + hsv.1 + hsv.2 * 0.5;
-        //let score = hue_dif * 2.0 - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
-        let score = hue_dif * 1.0 + hsv.1 * 0.2 + hsv.2 * 0.2
-            - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
-        if score > best_score {
-            complement = *pixel;
-            best_score = score;
-        }
-    }
+    //     //let score = hue_dif * 2.0 + hsv.1 + hsv.2 * 0.5;
+    //     //let score = hue_dif * 2.0 - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
+    //     let score = hue_dif * 1.0 + hsv.1 * 0.2 + hsv.2 * 0.2
+    //         - (hsv.1 - avg_hsv.1).abs() - (hsv.2 - avg_hsv.2).abs();
+    //     if score > best_score {
+    //         complement = *pixel;
+    //         best_score = score;
+    //     }
+    // }
 
-    return (adjust_hsv(best), adjust_hsv(complement));
+    return (adjust_hsv(best), best);
 }
 
 pub const FG_DEFAULT: Color32 = Color32::from_rgba_unmultiplied_const(143, 143, 143, 255);
