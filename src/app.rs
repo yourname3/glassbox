@@ -126,6 +126,10 @@ pub struct Song {
     title: String,
     album: Option<String>,
     artist: Option<String>,
+
+    // String representing the concatenated artist and album, e.g.
+    // Musician - The Song
+    artist_album: Option<String>,
 }
 
 impl Song {
@@ -145,12 +149,20 @@ impl Song {
         }
 
         let title = title.unwrap_or_else(|| "<unknown>".into());
+        
+        let artist_album = match (&artist, &album) {
+            (None, None) => None,
+            (Some(a), None) => Some(a.clone()),
+            (None, Some(b)) => Some(b.clone()),
+            (Some(a), Some(b)) => Some(format!("{a} - {b}")),
+        };
 
         Song {
             path,
             title,
             album,
-            artist
+            artist,
+            artist_album,
         }
     }
 }
@@ -209,14 +221,7 @@ impl Discord {
     pub fn update_song(&mut self, song: Option<&Song>) {
         match song {
             Some(song) => {
-                let mut state = String::new();
-                if let Some(artist) = &song.artist { write!(state, "{artist}").unwrap(); }
-                if let Some(album) = &song.album {
-                    // Discord does not appear to support newlines in the state,
-                    // so we separate with a hypen.
-                    if state.len() > 0 { write!(state, " - ").unwrap(); }
-                    write!(state, "{album}").unwrap();
-                }
+                let state = song.artist_album.as_ref().map(|x| x.clone()).unwrap_or_else(|| "".into());
 
                 let _ = self.client.set_activity(activity::Activity::new()
                     .details(&song.title)
@@ -475,42 +480,45 @@ impl eframe::App for App {
 
                     if current_playing_idx >= 0 && current_playing_idx < album.songs.len() as isize {
                         let song = &album.songs[current_playing_idx as usize];
+
+                        let song_frame_color = Color32::from_hex("#272727c7").unwrap();
                         
+                        // TODO: Having some sort of text stroke/outline would be
+                        // maybe preferable than this setup.
+
                         egui::Area::new(egui::Id::new("topwindow_song_info"))
                             .fixed_pos((105.0, 5.0))
                             .show(ctx, |ui| {
                                 egui::Frame::default()
-                                    .fill(Color32::from_hex("#2727275f").unwrap())
+                                    .fill(song_frame_color)
                                     .corner_radius(5)
                                     .inner_margin(5)
                                     .outer_margin(0)
-                                    // TODO: Having some sort of text stroke/outline would be
-                                    // maybe preferable to this setup.
+                                    
                                     .show(ui, |ui| {
-                                        ui.heading(&song.title);
+                                        ui.label(&song.title);
                                     }
                                 );
                             }
                         );
 
-                        egui::Area::new(egui::Id::new("topwindow_artist_album"))
-                            .pivot(egui::Align2::LEFT_BOTTOM)
-                            .fixed_pos((105.0, 95.0))
-                            .show(ctx, |ui| {
-                                egui::Frame::default()
-                                    .fill(Color32::from_hex("#2727275f").unwrap())
-                                    .corner_radius(5)
-                                    .inner_margin(5)
-                                    .outer_margin(0)
-                                    // TODO: Having some sort of text stroke/outline would be
-                                    // maybe preferable to this setup.
-                                    .show(ui, |ui| {
-                                        if let Some(artist) = &song.artist { ui.label(artist); }
-                                        if let Some(album) = &song.album { ui.label(album); }
-                                    }
-                                );
-                            }
-                        );
+                        if let Some(artist_album) = &song.artist_album {
+                            egui::Area::new(egui::Id::new("topwindow_artist_album"))
+                                .pivot(egui::Align2::LEFT_BOTTOM)
+                                .fixed_pos((105.0, 95.0))
+                                .show(ctx, |ui| {
+                                    egui::Frame::default()
+                                        .fill(song_frame_color)
+                                        .corner_radius(5)
+                                        .inner_margin(5)
+                                        .outer_margin(0)
+                                        .show(ui, |ui| {
+                                            ui.label(artist_album);
+                                        }
+                                    );
+                                }
+                            );
+                        }
                     }
                 }
 
