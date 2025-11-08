@@ -550,19 +550,26 @@ impl eframe::App for App {
 
                 let painter = ui.painter();
 
-                let stroke_bg = egui::epaint::PathStroke::new_uv(6.0, move |rect, uv| {
-                    let t = (uv.y - rect.top()) / rect.height();
-                    palette.bg_a.lerp_to_gamma(palette.fg_a, t)
+                let stroke_bg_dark = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
+                    let t_x = (uv.x - rect.left()) / rect.width();
+                    let t_y = (uv.y - rect.top()) / rect.height();
+                    palette.bg_a.lerp_to_gamma(palette.fg_a, t_x).lerp_to_gamma(Color32::from_gray(140), 2.0 * (0.5 - t_y).abs())
                 });
 
-                painter.line(left.0.clone(), stroke_bg.clone());
-                painter.line(right.0.clone(), stroke_bg);
+                let stroke_bg_light = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
+                    let t_x = (uv.x - rect.left()) / rect.width();
+                    let t_y = (uv.y - rect.top()) / rect.height();
+                    palette.bg_b.lerp_to_gamma(palette.fg_b, t_x).lerp_to_gamma(Color32::from_gray(230), 2.0 * (0.5 - t_y).abs())
+                });
 
-                //painter.line(left.2, (3.0, Color32::from_gray(140)));
-                //painter.line(right.2, (3.0, Color32::from_gray(140)));
+                //painter.line(left.0.clone(), stroke_bg.clone());
+                //painter.line(right.0.clone(), stroke_bg);
 
-                //painter.line(left.1, (3.0, Color32::from_gray(230)));
-                //painter.line(right.1, (3.0, Color32::from_gray(230)));
+                painter.line(left.2, stroke_bg_dark.clone());
+                painter.line(right.2, stroke_bg_dark);
+
+                painter.line(left.1, stroke_bg_light.clone());
+                painter.line(right.1, stroke_bg_light);
 
                 painter.line(left.0, egui::epaint::PathStroke::new_uv(4.0, move |rect, uv| {
                     let t = (uv.x - rect.left()) / rect.width();
