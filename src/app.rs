@@ -525,7 +525,7 @@ impl eframe::App for App {
                 let max_x = total_width - 10.0;
                 let min_x = 100.0 + 10.0;
                 
-                let samples_to_points = |samples: &Vec<_>| {
+                let samples_to_points = |samples: &Vec<_>, sep: f32| {
                     let mut points = Vec::new();
                     let mut points_high = Vec::new();
                     let mut points_low = Vec::new();
@@ -534,8 +534,8 @@ impl eframe::App for App {
                     
                     for (idx, sample) in samples.iter().enumerate() {
                         let point = egui::pos2(min_x + idx as f32 * x_factor, sample * 50.0 + 50.0);
-                        let high = point + egui::vec2(0.0, -0.5);
-                        let low = point + egui::vec2(0.0, 0.5);
+                        let high = point + egui::vec2(0.0, -sep);
+                        let low = point + egui::vec2(0.0, sep);
 
                         points.push(point);
                         points_high.push(high);
@@ -545,8 +545,8 @@ impl eframe::App for App {
                     (points, points_high, points_low)
                 };
 
-                let left = samples_to_points(&samples[0]);
-                let right = samples_to_points(&samples[1]);
+                let left = samples_to_points(&samples[0], 2.5);
+                let right = samples_to_points(&samples[1], 1.5);
 
                 let painter = ui.painter();
 
@@ -571,11 +571,11 @@ impl eframe::App for App {
                 painter.line(left.1, stroke_bg_light.clone());
                 painter.line(right.1, stroke_bg_light);
 
-                painter.line(left.0, egui::epaint::PathStroke::new_uv(2.5, move |rect, uv| {
+                painter.line(left.0, egui::epaint::PathStroke::new_uv(4.0, move |rect, uv| {
                     let t = (uv.x - rect.left()) / rect.width();
                     palette.fg_a.lerp_to_gamma(palette.fg_b, t)
                 }));
-                painter.line(right.0, egui::epaint::PathStroke::new_uv(1.5, move |rect, uv| {
+                painter.line(right.0, egui::epaint::PathStroke::new_uv(2.0, move |rect, uv| {
                     let t = (uv.x - rect.left()) / rect.width();
                     palette.bg_a.lerp_to_gamma(palette.bg_b, t)
                 }));
