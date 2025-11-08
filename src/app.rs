@@ -12,7 +12,7 @@ use std::fmt::Write;
 
 use crate::color_identifier::{self, Palette};
 
-const DISPLAY_BUFFER_SIZE: usize = 2048;
+const DISPLAY_BUFFER_SIZE: usize = 2048;// * 16;
 
 pub struct TapOutputChannel {
     contents: [AtomicU32; DISPLAY_BUFFER_SIZE],
@@ -254,6 +254,7 @@ pub struct App {
     tap_output: Arc<TapOutput>,
 
     current_album_art: Option<egui::TextureHandle>,
+    smoothed_spectrogram: Vec<f32>,
 }
 
 impl App {
@@ -279,6 +280,7 @@ impl App {
 
             tap_output: Arc::new(TapOutput::new()),
             current_album_art: None,
+            smoothed_spectrogram: Vec::new(),
         }
     }
 
@@ -559,27 +561,37 @@ impl eframe::App for App {
                 let mut log_bin_count = 1;
                 let mut log_bin_count_exp = 1.0;
                 let mut log_bin_start = 0;
-                while log_bin_start + log_bin_count < (log_bin_src.len() / 2) {
+                while log_bin_start + log_bin_count < log_bin_src.len() {
                     let mut total = 0.0;
                     let mut div = 0.0;
                     for i in log_bin_start..log_bin_start + log_bin_count {
-                        total += log_bin_src[i];
+                        total += log_bin_src[i].abs();
                         div   += 1.0;
                     }
                     log_bins.push((total / div).ln_1p());
                     log_bin_start += log_bin_count;
-                    log_bin_count_exp *= 1.1;
+                    log_bin_count_exp *= 1.03;
                     log_bin_count = log_bin_count_exp as usize;
                 }
 
+                for i in self.smoothed_spectrogram.len()..log_bins.len() {
+                    self.smoothed_spectrogram.push(log_bins[i]);
+                }
+                for (a, b) in self.smoothed_spectrogram.iter_mut().zip(log_bins.iter()) {
+                    *a += (*b - *a) * 0.03;
+                }
+
+                let spectrogram = &self.smoothed_spectrogram;
+
                 let mut max = 1.0;
-                for sample in &log_bins {
+                for sample in spectrogram {
                     if *sample > max { max = *sample; }
                 }
-                let x_factor = (max_x - min_x) / (log_bins.len() as f32);
-                for (idx, sample) in log_bins.iter().enumerate() {
+
+                let x_factor = (max_x - min_x) / (spectrogram.len() as f32);
+                for (idx, sample) in spectrogram.iter().enumerate() {
                     let point = egui::pos2(min_x + idx as f32 * x_factor, 50.0);
-                    painter.rect_filled(Rect::from_center_size(point, egui::vec2(3.0, sample * 50.0)), 2.0, Color32::WHITE);
+                    painter.rect_filled(Rect::from_center_size(point, egui::vec2(10.0, sample * 50.0)), 2.0, Color32::WHITE);
                     //painter.circle_filled(point, (sample) * 25.0, Color32::WHITE);
                 }
 
