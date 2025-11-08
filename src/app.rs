@@ -520,7 +520,7 @@ impl eframe::App for App {
 
                 // TODO: Maybe keep this as a preallocated buffer and re-use it
                 // each frame
-                let samples = self.tap_output.read_in_order();
+                let mut samples = self.tap_output.read_in_order();
 
                 let max_x = total_width - 10.0;
                 let min_x = 100.0 + 10.0;
@@ -548,7 +548,15 @@ impl eframe::App for App {
                 let left = samples_to_points(&samples[0], 2.5);
                 let right = samples_to_points(&samples[1], 1.5);
 
+                dft::transform(&mut samples[0], &dft::Plan::new(dft::Operation::Forward, DISPLAY_BUFFER_SIZE));
+
                 let painter = ui.painter();
+
+                let x_factor = (max_x - min_x) / (samples[0].len() as f32);
+                for (idx, sample) in samples[0].iter().enumerate() {
+                    let point = egui::pos2(min_x + idx as f32 * x_factor, 50.0);
+                    painter.circle_filled(point, sample * 50.0, Color32::WHITE);
+                }
 
                 let stroke_bg_dark = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
                     let t_x = (uv.x - rect.left()) / rect.width();
