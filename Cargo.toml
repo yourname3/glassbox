@@ -11,6 +11,7 @@ egui = "0.33.0"
 egui_extras = { version = "0.33.0", features = ["image"] }
 env_logger = "0.11.8"
 image = "0.25.8"
+iris-lib = "0.1.0"
 log = "0.4.28"
 raw-window-handle = "0.6.2"
 rfd = "0.15.4"

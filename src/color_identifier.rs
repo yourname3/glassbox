@@ -95,6 +95,21 @@ fn adjust_hsv(color: Color32) -> Color32 {
 }
 
 pub fn identify_colors_in(image: &ColorImage) -> (Color32, Color32) {
+    let pixels = image.pixels.iter().map(|p| iris_lib::color::Color {
+        r: p.r(),
+        g: p.g(),
+        b: p.b(),
+        a: p.a()
+    }).collect();
+    let mut color_bucket = iris_lib::color_bucket::ColorBucket::from_pixels(pixels).unwrap();
+    let palette = color_bucket.make_palette(1);
+
+    let to_egui = |c: iris_lib::color::Color| {
+        egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)
+    };
+
+    return (to_egui(palette[0]), to_egui(palette[1])); 
+
     let fg = Color32::WHITE;
     let bg = Color32::WHITE;
 

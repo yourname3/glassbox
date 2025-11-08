@@ -1691,6 +1691,7 @@ dependencies = [
  "egui_extras",
  "env_logger",
  "image",
+ "iris-lib",
  "log",
  "raw-window-handle",
  "rfd",
@@ -2044,6 +2045,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "iris-lib"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c29ff60ef55de609e001addb5d9ead10956f7f0dae1b9768d1826bfe2fa08b2"
 
 [[package]]
 name = "is_terminal_polyfill"
