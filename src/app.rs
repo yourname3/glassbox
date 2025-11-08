@@ -553,9 +553,13 @@ impl eframe::App for App {
                 let painter = ui.painter();
 
                 let x_factor = (max_x - min_x) / (samples[0].len() as f32);
+                let mut max = 1.0;
+                for sample in &samples[0] {
+                    if *sample > max { max = *sample; }
+                }
                 for (idx, sample) in samples[0].iter().enumerate() {
                     let point = egui::pos2(min_x + idx as f32 * x_factor, 50.0);
-                    painter.circle_filled(point, sample * 50.0, Color32::WHITE);
+                    painter.circle_filled(point, (sample / max) * 25.0, Color32::WHITE);
                 }
 
                 let stroke_bg_dark = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
