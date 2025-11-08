@@ -315,8 +315,12 @@ impl App {
         for entry in dir {
             let Ok(entry) = entry else { continue; };
             if let Some(ext) = entry.path().extension() {
-                if ext == "ogg" {
-                    songs.push(Song::new(entry.path()));
+                let supported_exts = ["ogg", "flac", "mp3", "wav"];
+
+                for candidate in supported_exts {
+                    if ext == candidate {
+                        songs.push(Song::new(entry.path()));
+                    }
                 }
             }
         }
@@ -324,24 +328,29 @@ impl App {
         // Clear the loaded texture so that we will reload it.
         self.current_album_art = None;
 
-        let possible_cover_path = path.join("cover.png");
         let mut album_cover = None;
-        log::info!("testing for cover.png @ {:?}", possible_cover_path);
 
-        let img = image::ImageReader::open(possible_cover_path);
-        if let Ok(img) = img {
-            if let Ok(decode) = img.decode() {
+        let possible_covers = ["cover.png", "cover.jpg"];
+        for candidate in possible_covers {
+            let possible_cover_path = path.join(candidate);
+            
+            log::info!("testing for cover image @ {:?}", possible_cover_path);
 
-                let rgba = decode.to_rgba8();
-                let size = [rgba.width() as _, rgba.height() as _];
-                let pixels = rgba.as_flat_samples();
+            let img = image::ImageReader::open(possible_cover_path);
+            if let Ok(img) = img {
+                if let Ok(decode) = img.decode() {
+                    let rgba = decode.to_rgba8();
+                    let size = [rgba.width() as _, rgba.height() as _];
+                    let pixels = rgba.as_flat_samples();
 
-                // Load the album art into a ColorImage so that we can process
-                // its pixel data.
-                let color_image = egui::ColorImage::from_rgba_unmultiplied(size,
-                    pixels.as_slice());
+                    // Load the album art into a ColorImage so that we can process
+                    // its pixel data.
+                    let color_image = egui::ColorImage::from_rgba_unmultiplied(size,
+                        pixels.as_slice());
 
-                album_cover = Some(color_image);
+                    album_cover = Some(color_image);
+                    break;
+                }
             }
         }
 
@@ -488,6 +497,12 @@ impl eframe::App for App {
                 let right = samples_to_points(&samples[1]);
 
                 let painter = ui.painter();
+
+                // Draw a copy of each line in white behind them. Apparently
+                // this requires cloning. :(
+                painter.line(left.clone(), (4.0, Color32::WHITE));
+                painter.line(right.clone(), (4.0, Color32::WHITE));
+
                 painter.line(left, (2.0, bg));
                 painter.line(right, (2.0, fg));
 
