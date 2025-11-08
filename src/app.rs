@@ -486,14 +486,22 @@ impl eframe::App for App {
                 
                 let samples_to_points = |samples: &Vec<_>| {
                     let mut points = Vec::new();
+                    let mut points_high = Vec::new();
+                    let mut points_low = Vec::new();
 
                     let x_factor = (max_x - min_x) / (samples.len() as f32);
                     
                     for (idx, sample) in samples.iter().enumerate() {
-                        points.push(egui::pos2(min_x + idx as f32 * x_factor, sample * 50.0 + 50.0));
+                        let point = egui::pos2(min_x + idx as f32 * x_factor, sample * 50.0 + 50.0);
+                        let high = point + egui::vec2(0.0, -1.0);
+                        let low = point + egui::vec2(0.0, 1.0);
+
+                        points.push(point);
+                        points_high.push(high);
+                        points_low.push(low);
                     }
 
-                    points
+                    (points, points_high, points_low)
                 };
 
                 let left = samples_to_points(&samples[0]);
@@ -501,13 +509,14 @@ impl eframe::App for App {
 
                 let painter = ui.painter();
 
-                // Draw a copy of each line in white behind them. Apparently
-                // this requires cloning. :(
-                painter.line(left.clone(), (4.0, Color32::WHITE));
-                painter.line(right.clone(), (4.0, Color32::WHITE));
+                painter.line(left.2, (3.0, Color32::from_gray(140)));
+                painter.line(right.2, (3.0, Color32::from_gray(140)));
 
-                painter.line(left, (2.0, bg));
-                painter.line(right, (2.0, fg));
+                painter.line(left.1, (3.0, Color32::from_gray(230)));
+                painter.line(right.1, (3.0, Color32::from_gray(230)));
+
+                painter.line(left.0, (2.0, bg));
+                painter.line(right.0, (2.0, fg));
 
                 if let Some(cover) = album_cover {
                     // Draw the album cover over the big line.
