@@ -550,11 +550,19 @@ impl eframe::App for App {
 
                 let painter = ui.painter();
 
-                painter.line(left.2, (3.0, Color32::from_gray(140)));
-                painter.line(right.2, (3.0, Color32::from_gray(140)));
+                let stroke_bg = egui::epaint::PathStroke::new_uv(6.0, move |rect, uv| {
+                    let t = (uv.y - rect.top()) / rect.height();
+                    palette.bg_a.lerp_to_gamma(palette.fg_a, t)
+                });
 
-                painter.line(left.1, (3.0, Color32::from_gray(230)));
-                painter.line(right.1, (3.0, Color32::from_gray(230)));
+                painter.line(left.0.clone(), stroke_bg.clone());
+                painter.line(right.0.clone(), stroke_bg);
+
+                //painter.line(left.2, (3.0, Color32::from_gray(140)));
+                //painter.line(right.2, (3.0, Color32::from_gray(140)));
+
+                //painter.line(left.1, (3.0, Color32::from_gray(230)));
+                //painter.line(right.1, (3.0, Color32::from_gray(230)));
 
                 painter.line(left.0, egui::epaint::PathStroke::new_uv(4.0, move |rect, uv| {
                     let t = (uv.x - rect.left()) / rect.width();
