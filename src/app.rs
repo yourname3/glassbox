@@ -12,12 +12,21 @@ use std::fmt::Write;
 
 use crate::color_identifier::{self, Palette};
 
-const DISPLAY_BUFFER_SIZE: usize = 2048 * 16;
+const DISPLAY_BUFFER_SIZE: usize = 2048;
+const DISPLAY_BUFFER_FILL_RATE: u32 = 16;
 const FFT_SIZE: usize = 2048;
 
 pub struct TapOutputChannel {
     display_buffer: [AtomicU32; DISPLAY_BUFFER_SIZE],
     signal_buffer: [AtomicU32; FFT_SIZE],
+
+    /// An F32 (cast to bits) that is the sum of the last few samples we are
+    /// trying to write to the display buffer.
+    display_fill: AtomicU32,
+    /// The number of samples we have summed so far in display_fill. Once this
+    /// equals the FILL_RATE, we compute the averaged sample, write it to the
+    /// display buffer, and reset this to 0.
+    display_fill_counter: AtomicU32,
 
     display_write_ptr: AtomicUsize,
     signal_write_ptr: AtomicUsize,
@@ -39,6 +48,9 @@ impl TapOutputChannel {
             signal_buffer: core::array::from_fn(|_| AtomicU32::new(f32::to_bits(0.0))),
             display_write_ptr: 0.into(),
             signal_write_ptr: 0.into(),
+            
+            display_fill: AtomicU32::new(f32::to_bits(0.0)),
+            display_fill_counter: 0.into(),
         }
     }
 
@@ -52,8 +64,20 @@ impl TapOutputChannel {
     }
 
     pub fn write(&self, sample: f32) {
-       Self::write_to(&self.display_buffer, &self.display_write_ptr, sample);
-       Self::write_to(&self.signal_buffer, &self.signal_write_ptr, sample);
+        let mut display_sum = f32::from_bits(self.display_fill.load(Ordering::Relaxed));
+        display_sum += sample;
+        let mut fill_count = self.display_fill_counter.load(Ordering::Relaxed) + 1;
+
+        if fill_count >= DISPLAY_BUFFER_FILL_RATE {
+            Self::write_to(&self.display_buffer, &self.display_write_ptr, display_sum / DISPLAY_BUFFER_FILL_RATE as f32);
+            display_sum = 0.0;
+            fill_count = 0;
+        }
+
+        self.display_fill.store(f32::to_bits(display_sum), Ordering::Relaxed);
+        self.display_fill_counter.store(fill_count, Ordering::Relaxed);
+
+        Self::write_to(&self.signal_buffer, &self.signal_write_ptr, sample);
     }
 
     fn read_to_vec<const N: usize>(buffer: &[AtomicU32; N], ptr: &AtomicUsize) -> Vec<f32> {
