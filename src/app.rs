@@ -611,18 +611,16 @@ impl eframe::App for App {
                 let mut log_bin_count = 1;
                 let mut log_bin_count_exp = 1.0;
                 let mut log_bin_start = 0;
-
-                let log = |x: f32| -> f32 { (x * 0.1).ln_1p() };
-
                 while log_bin_start + log_bin_count < log_bin_src.len() {
                     let mut total = 0.0;
-                    let mut div: f32 = 0.0;
+                    //let mut div = 0.0;
                     for i in log_bin_start..log_bin_start + log_bin_count {
-                        total += log(log_bin_src[i].abs());
+                        total += log_bin_src[i].abs();
                         //div   += 1.0;
                     }
-                    
-                    log_bins.push(total/* / div*/);
+                    // The multiplication by 0.1 keeps most bins inside the 0-1
+                    // range.
+                    log_bins.push((0.1 * total).ln_1p());
                     log_bin_start += log_bin_count;
                     log_bin_count_exp *= 1.03;
                     log_bin_count = log_bin_count_exp as usize;
