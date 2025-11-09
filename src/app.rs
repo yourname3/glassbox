@@ -302,6 +302,7 @@ pub struct App {
 
     current_album_art: Option<egui::TextureHandle>,
     smoothed_spectrogram: Vec<f32>,
+    spectrogram_scaler: f32,
 }
 
 impl App {
@@ -328,6 +329,7 @@ impl App {
             tap_output: Arc::new(TapOutput::new()),
             current_album_art: None,
             smoothed_spectrogram: Vec::new(),
+            spectrogram_scaler: 2.0,
         }
     }
 
@@ -611,19 +613,35 @@ impl eframe::App for App {
                 let mut log_bin_count = 1;
                 let mut log_bin_count_exp = 1.0;
                 let mut log_bin_start = 0;
+                let mut max = 4.0;
                 while log_bin_start + log_bin_count < log_bin_src.len() {
                     let mut total = 0.0;
                     //let mut div = 0.0;
                     for i in log_bin_start..log_bin_start + log_bin_count {
-                        total += log_bin_src[i].abs();
+                        total += log_bin_src[i] * log_bin_src[i];
                         //div   += 1.0;
                     }
                     // The multiplication by 0.1 keeps most bins inside the 0-1
                     // range.
-                    log_bins.push((0.1 * total).ln_1p());
+                    //log_bins.push((0.1 * total).ln_1p().sqrt() * 0.6);
+                    //log_bins.push(total.sqrt().ln_1p() * 0.27);
+                    //log_bins.push(total.ln_1p() * 0.13);
+
+                    //let next = total.sqrt();
+                    let next = total.sqrt().ln_1p();
+                    if next > max { max = next; }
+
+                    log_bins.push(next);
                     log_bin_start += log_bin_count;
                     log_bin_count_exp *= 1.03;
                     log_bin_count = log_bin_count_exp as usize;
+                }
+
+                //log::info!("{}", max);
+
+                self.spectrogram_scaler += (max - self.spectrogram_scaler) * 0.2;
+                for s in log_bins.iter_mut() {
+                    *s = (*s / self.spectrogram_scaler);
                 }
 
                 for i in self.smoothed_spectrogram.len()..log_bins.len() {
@@ -661,7 +679,7 @@ impl eframe::App for App {
                     color[3] = alpha;
                     let color = egui::Color32::from_rgba_unmultiplied(color[0], color[1], color[2], color[3]);
 
-                    painter.rect(Rect::from_center_size(point, egui::vec2(10.0, sample * 50.0)),
+                    painter.rect(Rect::from_center_size(point, egui::vec2(10.0, sample * 100.0)),
                         10.0 * sample,
                         color,
                         (2.0, stroke_color),
