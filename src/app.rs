@@ -12,7 +12,8 @@ use std::fmt::Write;
 
 use crate::color_identifier::{self, Palette};
 
-const DISPLAY_BUFFER_SIZE: usize = 2048;// * 16;
+const DISPLAY_BUFFER_SIZE: usize = 2048 * 16;
+const FFT_SIZE: usize = 2048;
 
 pub struct TapOutputChannel {
     contents: [AtomicU32; DISPLAY_BUFFER_SIZE],
@@ -550,11 +551,11 @@ impl eframe::App for App {
                 let left = samples_to_points(&samples[0], 2.5);
                 let right = samples_to_points(&samples[1], 1.5);
 
-                dft::transform(&mut samples[0], &dft::Plan::new(dft::Operation::Forward, DISPLAY_BUFFER_SIZE));
+                samples[0].truncate(FFT_SIZE);
+
+                dft::transform(&mut samples[0], &dft::Plan::new(dft::Operation::Forward, FFT_SIZE));
 
                 let painter = ui.painter();
-
-                
 
                 let mut log_bins = Vec::new();
                 let log_bin_src = &samples[0];
