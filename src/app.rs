@@ -12,8 +12,8 @@ use std::fmt::Write;
 
 use crate::color_identifier::{self, Palette};
 
-const DISPLAY_BUFFER_SIZE: usize = 2048;
-const DISPLAY_BUFFER_FILL_RATE: u32 = 16;
+const DISPLAY_BUFFER_SIZE: usize = 4096;
+const DISPLAY_BUFFER_FILL_RATE: u32 = 4;
 const FFT_SIZE: usize = 2048;
 
 pub struct TapOutputChannel {
@@ -665,13 +665,13 @@ impl eframe::App for App {
                     //painter.circle_filled(point, (sample) * 25.0, Color32::WHITE);
                 }
 
-                let stroke_bg_dark = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
+                let stroke_bg_dark = egui::epaint::PathStroke::new_uv(1.5, move |rect, uv| {
                     let t_x = (uv.x - rect.left()) / rect.width();
                     let t_y = (uv.y - rect.top()) / rect.height();
                     palette.bg_a.lerp_to_gamma(palette.fg_a, t_x).lerp_to_gamma(Color32::from_gray(140), 2.0 * (0.5 - t_y).abs())
                 });
 
-                let stroke_bg_light = egui::epaint::PathStroke::new_uv(3.0, move |rect, uv| {
+                let stroke_bg_light = egui::epaint::PathStroke::new_uv(1.5, move |rect, uv| {
                     let t_x = (uv.x - rect.left()) / rect.width();
                     let t_y = (uv.y - rect.top()) / rect.height();
                     palette.bg_b.lerp_to_gamma(palette.fg_b, t_x).lerp_to_gamma(Color32::from_gray(230), 2.0 * (0.5 - t_y).abs())
