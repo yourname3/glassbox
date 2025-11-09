@@ -533,6 +533,8 @@ impl eframe::App for App {
 
                         egui::Area::new(egui::Id::new("topwindow_song_info"))
                             .fixed_pos((105.0, 5.0))
+                            //.default_width(100_000.0)
+                            //.sizing_pass(self.last_playing_idx != current_playing_idx)
                             .show(ctx, |ui| {
                                 egui::Frame::default()
                                     .fill(song_frame_color)
@@ -541,7 +543,7 @@ impl eframe::App for App {
                                     .outer_margin(0)
                                     
                                     .show(ui, |ui| {
-                                        ui.label(&song.title);
+                                        ui.add(egui::Label::new(&song.title).extend());
                                     }
                                 );
                             }
@@ -551,6 +553,8 @@ impl eframe::App for App {
                             egui::Area::new(egui::Id::new("topwindow_artist_album"))
                                 .pivot(egui::Align2::LEFT_BOTTOM)
                                 .fixed_pos((105.0, 95.0))
+                                //.default_width(100_000.0)
+                                //.sizing_pass(self.last_playing_idx != current_playing_idx)
                                 .show(ctx, |ui| {
                                     egui::Frame::default()
                                         .fill(song_frame_color)
@@ -558,7 +562,7 @@ impl eframe::App for App {
                                         .inner_margin(5)
                                         .outer_margin(0)
                                         .show(ui, |ui| {
-                                            ui.label(artist_album);
+                                            ui.add(egui::Label::new(artist_album).extend());
                                         }
                                     );
                                 }
@@ -594,7 +598,7 @@ impl eframe::App for App {
                     (points, points_high, points_low)
                 };
 
-                let left = samples_to_points(&snapshots[0].display, 2.5);
+                let left = samples_to_points(&snapshots[0].display, 1.5);
                 let right = samples_to_points(&snapshots[1].display, 1.5);
 
                 // TODO: Use both left and right channels for DFT?
@@ -686,7 +690,7 @@ impl eframe::App for App {
                 painter.line(left.1, stroke_bg_light.clone());
                 painter.line(right.1, stroke_bg_light);
 
-                painter.line(left.0, egui::epaint::PathStroke::new_uv(4.0, move |rect, uv| {
+                painter.line(left.0, egui::epaint::PathStroke::new_uv(2.0, move |rect, uv| {
                     let t = (uv.x - rect.left()) / rect.width();
                     palette.fg_a.lerp_to_gamma(palette.fg_b, t)
                 }));
