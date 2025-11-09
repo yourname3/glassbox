@@ -16,8 +16,16 @@ const DISPLAY_BUFFER_SIZE: usize = 2048 * 16;
 const FFT_SIZE: usize = 2048;
 
 pub struct TapOutputChannel {
-    contents: [AtomicU32; DISPLAY_BUFFER_SIZE],
-    write_ptr: AtomicUsize,
+    display_buffer: [AtomicU32; DISPLAY_BUFFER_SIZE],
+    signal_buffer: [AtomicU32; FFT_SIZE],
+
+    display_write_ptr: AtomicUsize,
+    signal_write_ptr: AtomicUsize,
+}
+
+pub struct TapOutputChannelSnapshot {
+    pub display: Vec<f32>,
+    pub signal: Vec<f32>,
 }
 
 pub struct TapOutput {
@@ -27,31 +35,45 @@ pub struct TapOutput {
 impl TapOutputChannel {
     pub fn new() -> Self {
         Self {
-            contents: core::array::from_fn(|_| AtomicU32::new(f32::to_bits(0.0))),
-            write_ptr: 0.into(),
+            display_buffer: core::array::from_fn(|_| AtomicU32::new(f32::to_bits(0.0))),
+            signal_buffer: core::array::from_fn(|_| AtomicU32::new(f32::to_bits(0.0))),
+            display_write_ptr: 0.into(),
+            signal_write_ptr: 0.into(),
         }
     }
 
-    pub fn write(&self, sample: f32) {
-        let as_u32: u32 = f32::to_bits(sample);
+    fn write_to<const N: usize>(buffer: &[AtomicU32; N], ptr: &AtomicUsize, value: f32) {
+        let as_u32: u32 = f32::to_bits(value);
 
-        let dest = self.write_ptr.load(Ordering::Relaxed);
-        self.write_ptr.store((dest + 1) % DISPLAY_BUFFER_SIZE, Ordering::Relaxed);
+        let dest = ptr.load(Ordering::Relaxed);
+        ptr.store((dest + 1) % N, Ordering::Relaxed);
 
-        self.contents[dest].store(as_u32, Ordering::Relaxed);
+        buffer[dest].store(as_u32, Ordering::Relaxed);
     }
 
-    pub fn read_in_order(&self) -> Vec<f32> {
+    pub fn write(&self, sample: f32) {
+       Self::write_to(&self.display_buffer, &self.display_write_ptr, sample);
+       Self::write_to(&self.signal_buffer, &self.signal_write_ptr, sample);
+    }
+
+    fn read_to_vec<const N: usize>(buffer: &[AtomicU32; N], ptr: &AtomicUsize) -> Vec<f32> {
         let mut output = Vec::new();
         // The oldest value that was written is the one right after the write_ptr.
-        let start = self.write_ptr.load(Ordering::Relaxed) + 1 % DISPLAY_BUFFER_SIZE;
+        let start = ptr.load(Ordering::Relaxed) + 1 % N;
 
-        for i in 0..DISPLAY_BUFFER_SIZE {
-            let as_bits = self.contents[(start + i) % DISPLAY_BUFFER_SIZE].load(Ordering::Relaxed);
+        for i in 0..N {
+            let as_bits = buffer[(start + i) % N].load(Ordering::Relaxed);
             output.push(f32::from_bits(as_bits));
         }
 
         output
+    }
+
+    pub fn read_in_order(&self) -> TapOutputChannelSnapshot {
+        TapOutputChannelSnapshot {
+            display: Self::read_to_vec(&self.display_buffer, &self.display_write_ptr),
+            signal: Self::read_to_vec(&self.signal_buffer, &self.signal_write_ptr),
+        }
     }
 }
 
@@ -67,7 +89,7 @@ impl TapOutput {
         self.channels[channel].write(sample);
     }
 
-    pub fn read_in_order(&self) -> [Vec<f32>; 2] {
+    pub fn read_in_order(&self) -> [TapOutputChannelSnapshot; 2] {
         [self.channels[0].read_in_order(), self.channels[1].read_in_order()]
     }
 }
@@ -523,7 +545,7 @@ impl eframe::App for App {
 
                 // TODO: Maybe keep this as a preallocated buffer and re-use it
                 // each frame
-                let mut samples = self.tap_output.read_in_order();
+                let mut snapshots = self.tap_output.read_in_order();
 
                 let max_x = total_width - 10.0;
                 let min_x = 100.0 + 10.0;
@@ -548,17 +570,16 @@ impl eframe::App for App {
                     (points, points_high, points_low)
                 };
 
-                let left = samples_to_points(&samples[0], 2.5);
-                let right = samples_to_points(&samples[1], 1.5);
+                let left = samples_to_points(&snapshots[0].display, 2.5);
+                let right = samples_to_points(&snapshots[1].display, 1.5);
 
-                samples[0].truncate(FFT_SIZE);
-
-                dft::transform(&mut samples[0], &dft::Plan::new(dft::Operation::Forward, FFT_SIZE));
+                // TODO: Use both left and right channels for DFT?
+                dft::transform(&mut snapshots[0].signal, &dft::Plan::new(dft::Operation::Forward, FFT_SIZE));
 
                 let painter = ui.painter();
 
                 let mut log_bins = Vec::new();
-                let log_bin_src = &samples[0];
+                let log_bin_src = &snapshots[0].signal;
                 let mut log_bin_count = 1;
                 let mut log_bin_count_exp = 1.0;
                 let mut log_bin_start = 0;
