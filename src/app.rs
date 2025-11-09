@@ -1,8 +1,10 @@
 use std::io::Read;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{path::PathBuf, time::Duration};
 use std::sync::Arc;
 
+use discord_rich_presence::activity::Timestamps;
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
 use egui::{Color32, Rect, ViewportId};
 use rfd::FileDialog;
@@ -264,20 +266,42 @@ impl Discord {
         Some(Discord { client })
     }
 
-    pub fn update_song(&mut self, song: Option<&Song>) {
+    pub fn update_song(&mut self, song: Option<&Song>, song_length: Option<Duration>) {
         match song {
             Some(song) => {
                 let state = song.artist_album.as_ref().map(|x| x.clone()).unwrap_or_else(|| "".into());
-
-                let _ = self.client.set_activity(activity::Activity::new()
+                
+                let mut activity = activity::Activity::new()
                     .details(&song.title)
                     .state(&state)
                     // TODO: Add .timestamps() for more.
 
                     // Show the song name as the status display
                     .status_display_type(activity::StatusDisplayType::Details)
-                    .activity_type(activity::ActivityType::Listening)
-                );
+                    .activity_type(activity::ActivityType::Listening);
+
+                if let Some(length) = song_length {
+                    let now = SystemTime::now();
+                    let later = now + length;
+
+                    // TODO: What we also really want here is a duration
+                    // of *where are we in the song*, plus *is the song actually
+                    // playing* (if not, we should show something else.)
+
+                    fn timestamp(time: SystemTime) -> i64 {
+                        time.duration_since(UNIX_EPOCH)
+                            // TODO: Don't unwrap() here.
+                            .unwrap()
+                            .as_secs()
+                            as i64
+                    }
+
+                    activity = activity.timestamps(Timestamps::new()
+                        .start(timestamp(now))
+                        .end(timestamp(later)));
+                }
+
+                let _ = self.client.set_activity(activity);
             }
             None => {
                 let _ = self.client.set_activity(activity::Activity::new()
@@ -768,7 +792,12 @@ impl eframe::App for App {
                             else { None };
 
                             if let Some(discord) = self.discord.as_mut() {
-                                discord.update_song(song);
+                                let duration = match &self.playback {
+                                    // TODO: Make this less jank (the usize cast in particular)
+                                    Some(p) => p.duration_map.get(current_playing_idx as usize),
+                                    None => None,
+                                };
+                                discord.update_song(song, duration.copied());
                             }
                         }
                     }
