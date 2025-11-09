@@ -671,8 +671,8 @@ impl eframe::App for App {
                 for (idx, sample) in spectrogram.iter().enumerate() {
                     let point = egui::pos2(min_x + idx as f32 * x_factor, 50.0);
                     let t = idx as f32 / spectrogram.len() as f32;
-                    let color = palette.bg_a.lerp_to_gamma(palette.fg_b, t);
-                    let stroke_color = palette.fg_a.lerp_to_gamma(palette.bg_b, t);
+                    let color = palette.fg_b.lerp_to_gamma(palette.bg_a, t);
+                    let stroke_color = palette.bg_b.lerp_to_gamma(palette.fg_a, t);
                     let alpha = ((*sample * 245.0) + 10.0).clamp(0.0, 255.0) as u8;
                     
                     let mut color = color.to_srgba_unmultiplied();
