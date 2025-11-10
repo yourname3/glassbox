@@ -537,7 +537,7 @@ impl App {
                         // maybe preferable than this setup.
 
                         egui::Area::new(egui::Id::new("topwindow_song_info"))
-                            .fixed_pos((105.0, 5.0))
+                            .fixed_pos((100.0, 5.0))
                             //.default_width(100_000.0)
                             //.sizing_pass(self.last_playing_idx != current_playing_idx)
                             .show(ctx, |ui| {
@@ -557,7 +557,7 @@ impl App {
                         if let Some(artist_album) = &song.artist_album {
                             egui::Area::new(egui::Id::new("topwindow_artist_album"))
                                 .pivot(egui::Align2::LEFT_BOTTOM)
-                                .fixed_pos((105.0, 95.0))
+                                .fixed_pos((100.0, 95.0))
                                 //.default_width(100_000.0)
                                 //.sizing_pass(self.last_playing_idx != current_playing_idx)
                                 .show(ctx, |ui| {
@@ -580,8 +580,8 @@ impl App {
                 // each frame
                 let mut snapshots = self.tap_output.read_in_order();
 
-                let max_x = total_width - 10.0;
-                let min_x = 100.0 + 10.0;
+                let max_x = total_width - 5.0;
+                let min_x = 95.0 + 5.0;
                 
                 let samples_to_points = |samples: &Vec<_>, sep: f32| {
                     let mut points = Vec::new();
@@ -684,6 +684,9 @@ impl App {
                     color[3] = alpha;
                     let color = egui::Color32::from_rgba_unmultiplied(color[0], color[1], color[2], color[3]);
 
+                    // Add half the x width to center the rectangles better
+                    let point = point + egui::vec2(5.0, 0.0);
+
                     painter.rect(Rect::from_center_size(point, egui::vec2(10.0, sample * 100.0)),
                         10.0 * sample,
                         color,
@@ -725,7 +728,7 @@ impl App {
                 if let Some(cover) = album_cover {
                     // Draw the album cover over the big line.
                     // I guess we could also draw the line to the side...
-                    cover.paint_at(ui, egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 100.0)));
+                    cover.paint_at(ui, egui::Rect::from_min_size(egui::pos2(5.0, 5.0), egui::vec2(90.0, 90.0)));
                 }
             }
         );
