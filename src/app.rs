@@ -229,8 +229,8 @@ pub struct Album {
 pub struct AudioPlayback {
     stream_handle: rodio::OutputStream,
     sink: rodio::Sink,
-    /// Keeps track of which durations map to which songs.
-    duration_map: Vec<Duration>,
+    /// For each song index, keeps track of the duration for that song.
+    durations: Vec<Duration>,
 }
 
 impl AudioPlayback {
@@ -241,7 +241,7 @@ impl AudioPlayback {
         Some(AudioPlayback {
             stream_handle,
             sink,
-            duration_map: Vec::new(),
+            durations: Vec::new(),
         })
     }
 }
@@ -363,8 +363,7 @@ impl App {
 
         playback.sink.clear();
 
-        playback.duration_map.clear();
-        let mut total_duration = Duration::ZERO;
+        playback.durations.clear();
 
         for song in &album.songs {
             // TODO: Report errors somehow?
@@ -375,8 +374,7 @@ impl App {
 
             let tap = Tap::new(decoder, self.tap_output.clone());
 
-            total_duration += tap.total_duration().unwrap();
-            playback.duration_map.push(total_duration);
+            playback.durations.push(tap.total_duration().unwrap());
 
             playback.sink.append(tap);
         }
@@ -794,7 +792,7 @@ impl eframe::App for App {
                             if let Some(discord) = self.discord.as_mut() {
                                 let duration = match &self.playback {
                                     // TODO: Make this less jank (the usize cast in particular)
-                                    Some(p) => p.duration_map.get(current_playing_idx as usize),
+                                    Some(p) => p.durations.get(current_playing_idx as usize),
                                     None => None,
                                 };
                                 discord.update_song(song, duration.copied());
