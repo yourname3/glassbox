@@ -328,6 +328,8 @@ pub struct App {
     current_album_art: Option<egui::TextureHandle>,
     smoothed_spectrogram: Vec<f32>,
     spectrogram_scaler: f32,
+
+    smoothed_clip_y: f32,
 }
 
 impl App {
@@ -355,6 +357,8 @@ impl App {
             current_album_art: None,
             smoothed_spectrogram: Vec::new(),
             spectrogram_scaler: 2.0,
+
+            smoothed_clip_y: 200.0,
         }
     }
 
@@ -753,19 +757,12 @@ impl eframe::App for App {
             ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(size.x, 200.0)));
         }
 
-        // let show_main_window = ctx.input(|i| {
-        //     log::info!("pointer: {:?}", i.pointer.latest_pos());
-        //     match i.pointer.latest_pos() {
-        //         Some(pos) => pos.y >= 100.0,
-        //         None => true
-        //     }
-        // });
-        let clip_y = (os::get_global_mouse_position(ctx).y - 10.0).max(0.0);
-        //let show_main_window = os::get_global_mouse_position(ctx).y >= 100.0;
+        let clip_y = (os::get_global_mouse_position(ctx).y - 20.0).clamp(0.0, 200.0);
+        self.smoothed_clip_y += (clip_y - self.smoothed_clip_y) * 0.04;
+        // Instantaneously shrink; animate un-shrinking
+        if clip_y + 10.0 < self.smoothed_clip_y { self.smoothed_clip_y = clip_y + 10.0; }
 
-        //if show_main_window {
-        self.main_window(ctx, current_playing_idx, clip_y);
-        //}
+        self.main_window(ctx, current_playing_idx, self.smoothed_clip_y);
 
         // TODO:
         // It would be ideal if we could defer the other viewport, but this
