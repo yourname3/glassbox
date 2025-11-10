@@ -632,6 +632,8 @@ impl App {
 
                     //let next = total.sqrt();
                     let next = total.sqrt().ln_1p();
+                    // Square to emphasize differences
+                    // let next = next * next;
                     if next > max { max = next; }
 
                     log_bins.push(next);
