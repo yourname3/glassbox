@@ -13,6 +13,7 @@ use rodio::Source;
 use std::fmt::Write;
 
 use crate::color_identifier::{self, Palette};
+use crate::os;
 
 const DISPLAY_BUFFER_SIZE: usize = 4096;
 const DISPLAY_BUFFER_FILL_RATE: u32 = 4;
@@ -465,35 +466,8 @@ impl App {
 
         return (album.songs.len() - playback.sink.len()) as isize;
     }
-}
 
-impl eframe::App for App {
-    /// Called by the framework to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        //eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
-    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        [0.0, 0.0, 0.0, 0.0]
-    }
-
-    
-
-    /// Called each time the UI needs repainting, which may be many times per second.
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        let current_playing_idx = self.compute_playing_idx();
-
-        #[cfg(target_os = "windows")]
-        crate::os::apply_window_transparency(_frame);
-
-        let monitor_size = ctx.input(|i| i.viewport().monitor_size);
-        if let Some(size) = monitor_size {
-            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(size.x, 200.0)));
-        }
-
+    fn main_window(&mut self, ctx: &egui::Context, current_playing_idx: isize) {
         egui::CentralPanel::default()
             .frame(egui::Frame::default()
                 //.fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127))
@@ -746,6 +720,48 @@ impl eframe::App for App {
                 }
             }
         );
+    }
+}
+
+impl eframe::App for App {
+    /// Called by the framework to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        //eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        [0.0, 0.0, 0.0, 0.0]
+    }
+
+    
+
+    /// Called each time the UI needs repainting, which may be many times per second.
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
+        // For inspiration and more examples, go to https://emilk.github.io/egui
+
+        let current_playing_idx = self.compute_playing_idx();
+
+        #[cfg(target_os = "windows")]
+        crate::os::apply_window_transparency(_frame);
+
+        let monitor_size = ctx.input(|i| i.viewport().monitor_size);
+        if let Some(size) = monitor_size {
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(size.x, 200.0)));
+        }
+
+        // let show_main_window = ctx.input(|i| {
+        //     log::info!("pointer: {:?}", i.pointer.latest_pos());
+        //     match i.pointer.latest_pos() {
+        //         Some(pos) => pos.y >= 100.0,
+        //         None => true
+        //     }
+        // });
+        let show_main_window = os::get_global_mouse_position(ctx).y >= 100.0;
+
+        if show_main_window {
+            self.main_window(ctx, current_playing_idx);
+        }
 
         // TODO:
         // It would be ideal if we could defer the other viewport, but this

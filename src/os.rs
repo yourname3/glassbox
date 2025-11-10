@@ -4,12 +4,14 @@ use {
     raw_window_handle::RawWindowHandle,
     
     windows::Win32::{
-        Foundation::HWND,
+        Foundation::{HWND, POINT},
         UI::WindowsAndMessaging::{
             GetWindowLongW, SetWindowLongW,
             GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_EX_NOACTIVATE,
 
-            SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE
+            SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE, SWP_NOACTIVATE,
+
+            GetCursorPos,
         }
     }
 };
@@ -38,4 +40,14 @@ pub fn apply_window_transparency<T: HasWindowHandle>(has_handle: T) {
 
         let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
+}
+
+#[cfg(target_os = "windows")]
+pub fn get_global_mouse_position(ctx: &egui::Context) -> egui::Pos2 {
+    let mut point: POINT = POINT { x: 0, y: 0 };
+
+    // Ignore the error
+    unsafe { let _ = GetCursorPos(&mut point); }
+
+    egui::pos2(point.x as f32, point.y as f32) / ctx.pixels_per_point()
 }
