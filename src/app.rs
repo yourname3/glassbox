@@ -467,7 +467,7 @@ impl App {
         return (album.songs.len() - playback.sink.len()) as isize;
     }
 
-    fn main_window(&mut self, ctx: &egui::Context, current_playing_idx: isize) {
+    fn main_window(&mut self, ctx: &egui::Context, current_playing_idx: isize, clip_y: f32) {
         egui::CentralPanel::default()
             .frame(egui::Frame::default()
                 //.fill(Color32::from_rgba_unmultiplied(176, 134, 189, 127))
@@ -475,6 +475,9 @@ impl App {
                 .inner_margin(3.0)
             )
             .show(ctx, |ui| {
+                if clip_y <= 100.0 {
+                    ui.shrink_clip_rect(ui.clip_rect().with_max_y(clip_y));
+                }
                 // I think this will work?
                 let total_width = ui.available_width();
 
@@ -757,11 +760,12 @@ impl eframe::App for App {
         //         None => true
         //     }
         // });
-        let show_main_window = os::get_global_mouse_position(ctx).y >= 100.0;
+        let clip_y = (os::get_global_mouse_position(ctx).y - 10.0).max(0.0);
+        //let show_main_window = os::get_global_mouse_position(ctx).y >= 100.0;
 
-        if show_main_window {
-            self.main_window(ctx, current_playing_idx);
-        }
+        //if show_main_window {
+        self.main_window(ctx, current_playing_idx, clip_y);
+        //}
 
         // TODO:
         // It would be ideal if we could defer the other viewport, but this
