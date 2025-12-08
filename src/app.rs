@@ -245,6 +245,11 @@ impl AudioPlayback {
             durations: Vec::new(),
         })
     }
+
+    pub fn set_volume(&self, volume: f32) {
+        let volume = volume.clamp(0.0, 1.0);
+        self.sink.set_volume(volume);
+    }
 }
 
 pub struct Discord {
@@ -330,6 +335,8 @@ pub struct App {
     spectrogram_scaler: f32,
 
     smoothed_clip_y: f32,
+
+    current_volume: f32,
 }
 
 impl App {
@@ -359,6 +366,8 @@ impl App {
             spectrogram_scaler: 2.0,
 
             smoothed_clip_y: 200.0,
+
+            current_volume: 1.0,
         }
     }
 
@@ -779,6 +788,12 @@ impl eframe::App for App {
             |ctx, class| {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     ui.label("Control Window");
+
+                    ui.add(egui::Slider::new(&mut self.current_volume, 0.0..=1.0));
+
+                    if let Some(playback) = &self.playback {
+                        playback.set_volume(self.current_volume);
+                    }
 
                     if ui.button("Open").clicked() {
                         if let Some(album) = FileDialog::new().pick_folder() {
