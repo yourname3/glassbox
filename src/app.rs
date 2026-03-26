@@ -763,7 +763,6 @@ impl eframe::App for App {
 
         let current_playing_idx = self.compute_playing_idx();
 
-        #[cfg(target_os = "windows")]
         crate::os::apply_window_transparency(_frame);
 
         let monitor_size = ctx.input(|i| i.viewport().monitor_size);
