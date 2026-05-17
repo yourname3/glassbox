@@ -7,7 +7,7 @@ edition = "2024"
 clap = { version = "4.5.51", features = ["derive"] }
 dft = "0.5.5"
 discord-rich-presence = "1.0.0"
-eframe = "0.33.0"
+eframe = { version = "0.33.0", default-features = false, features = ["x11", "glow"] }
 egui = "0.33.0"
 egui_extras = { version = "0.33.0", features = ["image"] }
 env_logger = "0.11.8"
