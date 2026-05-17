@@ -61,17 +61,12 @@ use wayland_backend::client::ObjectId;
 use wayland_client::{Dispatch, EventQueue, protocol::{wl_compositor::WlCompositor, wl_region::WlRegion, wl_registry::{self, WlRegistry}, wl_surface}};
 #[cfg(all(unix, not(target_os = "macos")))]
 use wayland_client::{Connection, Proxy, protocol::wl_surface::WlSurface};
-use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1}, zwlr_layer_surface_v1::ZwlrLayerSurfaceV1};
 
 /// State object used to implement the "set region to null" operation for Wayland.
 struct WaylandRegionSettingState {
     initialized: bool,
     compositor_name: u32,
     compositor_version: u32,
-
-    has_layer_shell: bool,
-    zwlr_layer_shell_name: u32,
-    zwlr_layer_shell_version: u32,
 }
 
 impl Dispatch<WlRegion, ()> for WaylandRegionSettingState {
@@ -106,45 +101,12 @@ impl Dispatch<WlRegistry, ()> for WaylandRegionSettingState {
         _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
         if let wl_registry::Event::Global { name, interface, version } = event {
-            eprintln!("{} {} {}", name, interface, version);
             if interface == "wl_compositor" {
                 state.compositor_name = name;
                 state.compositor_version = version;
                 state.initialized = true;
             }
-
-            if interface == "zwlr_layer_shell_v1" {
-                state.zwlr_layer_shell_name = name;
-                state.zwlr_layer_shell_version = version;
-                state.has_layer_shell = true;
-            }
         }
-    }
-}
-
-impl Dispatch<ZwlrLayerShellV1, ()> for WaylandRegionSettingState {
-    fn event(
-        state: &mut Self,
-        proxy: &ZwlrLayerShellV1,
-        event: <ZwlrLayerShellV1 as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        
-    }
-}
-
-impl Dispatch<ZwlrLayerSurfaceV1, ()> for WaylandRegionSettingState {
-    fn event(
-        state: &mut Self,
-        proxy: &ZwlrLayerSurfaceV1,
-        event: <ZwlrLayerSurfaceV1 as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        
     }
 }
 
@@ -169,11 +131,7 @@ pub fn make_wayland_window_input_transparent(surface_ptr: *mut c_void, display_p
     let mut state = WaylandRegionSettingState {
         initialized: false,
         compositor_name: 0, 
-        compositor_version: 0,
-
-        has_layer_shell: false,
-        zwlr_layer_shell_name: 0,
-        zwlr_layer_shell_version: 0,
+        compositor_version: 0
     };
 
     let qh = queue.handle();
@@ -186,14 +144,6 @@ pub fn make_wayland_window_input_transparent(surface_ptr: *mut c_void, display_p
         let compositor = registry.bind::<WlCompositor, _, _>(state.compositor_name, state.compositor_version, &qh, ());
         let region = compositor.create_region(&qh, ());
         surface.set_input_region(Some(&region));
-    }
-
-    if state.has_layer_shell {
-        let layer_shell = registry.bind::<ZwlrLayerShellV1, _, _>(
-            state.zwlr_layer_shell_name, state.zwlr_layer_shell_version, &qh, ()
-        );
-
-        layer_shell.get_layer_surface(&surface, None, Layer::Overlay, "glassbox".into(), &qh, ());
     }
 
     Some(())
