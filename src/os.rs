@@ -1,4 +1,4 @@
-use std::mem::MaybeUninit;
+use std::{mem::MaybeUninit, os::raw::c_void};
 
 #[cfg(target_os = "windows")]
 use {
@@ -58,60 +58,52 @@ use raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 #[cfg(all(unix, not(target_os = "macos")))]
 use raw_window_handle::HasWindowHandle;
 use wayland_backend::client::ObjectId;
-use wayland_client::{Dispatch, EventQueue, globals::GlobalListContents, protocol::{wl_compositor::WlCompositor, wl_display::WlDisplay, wl_region::WlRegion, wl_registry::{self, WlRegistry}, wl_surface}};
+use wayland_client::{Dispatch, EventQueue, protocol::{wl_compositor::WlCompositor, wl_region::WlRegion, wl_registry::{self, WlRegistry}, wl_surface}};
 #[cfg(all(unix, not(target_os = "macos")))]
 use wayland_client::{Connection, Proxy, protocol::wl_surface::WlSurface};
 
-struct MyState {
-    region: MaybeUninit<WlRegion>,
+/// State object used to implement the "set region to null" operation for Wayland.
+struct WaylandRegionSettingState {
     initialized: bool,
-
-    compositor: u32,
-    compositor_v: u32,
+    compositor_name: u32,
+    compositor_version: u32,
 }
 
-impl Dispatch<WlRegion, ()> for MyState {
+impl Dispatch<WlRegion, ()> for WaylandRegionSettingState {
     fn event(
-        state: &mut Self,
-        proxy: &WlRegion,
-        event: <WlRegion as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        
-    }
+        _: &mut Self,
+        _: &WlRegion,
+        _: <WlRegion as Proxy>::Event,
+        _: &(),
+        _: &Connection,
+        _: &wayland_client::QueueHandle<Self>,
+    ) { }
 }
 
-impl Dispatch<WlCompositor, ()> for MyState {
+impl Dispatch<WlCompositor, ()> for WaylandRegionSettingState {
     fn event(
-        state: &mut Self,
-        proxy: &WlCompositor,
-        event: <WlCompositor as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        // let region = proxy.create_region(qhandle, ());
-        // state.region = MaybeUninit::new(region);
-        // state.initialized = true;
-    }
+        _: &mut Self,
+        _: &WlCompositor,
+        _: <WlCompositor as Proxy>::Event,
+        _: &(),
+        _: &Connection,
+        _: &wayland_client::QueueHandle<Self>,
+    ) { }
 }
 
-impl Dispatch<WlRegistry, ()> for MyState {
+impl Dispatch<WlRegistry, ()> for WaylandRegionSettingState {
     fn event(
         state: &mut Self,
-        proxy: &WlRegistry,
+        _proxy: &WlRegistry,
         event: <WlRegistry as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
+        _data: &(),
+        _conn: &Connection,
+        _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
         if let wl_registry::Event::Global { name, interface, version } = event {
-            println!("[{}] {} (v{})", name, interface, version);
             if interface == "wl_compositor" {
-                state.compositor = name;
-                state.compositor_v = version;
+                state.compositor_name = name;
+                state.compositor_version = version;
                 state.initialized = true;
             }
         }
@@ -123,50 +115,38 @@ impl Dispatch<WlRegistry, ()> for MyState {
 /// 
 /// For this to work properly, you need to call this once per window after creation,
 /// providing the raw Wayland display and surface pointers.
-pub fn make_wayland_window_input_transparent<T: HasWindowHandle + HasDisplayHandle>(has_handle: T) {
+pub fn make_wayland_window_input_transparent(surface_ptr: *mut c_void, display_ptr: *mut c_void) -> Option<()> {
+    let conn = unsafe {
+        Connection::from_backend(wayland_backend::sys::client::Backend::from_foreign_display(display_ptr as _))
+    };
 
+    let surface = unsafe {
+        WlSurface::from_id(&conn, ObjectId::from_ptr(
+            WlSurface::interface(),
+            surface_ptr as _).ok()?
+        ).ok()?
+    };
 
-    if let Ok(handle) = has_handle.display_handle() {
-        if let RawDisplayHandle::Wayland(wayland) = handle.as_raw() {
-            let conn = unsafe { Connection::from_backend(wayland_backend::sys::client::Backend::from_foreign_display(wayland.display.as_ptr() as _)) };
+    let mut queue: EventQueue<WaylandRegionSettingState> = conn.new_event_queue();
+    let mut state = WaylandRegionSettingState {
+        initialized: false,
+        compositor_name: 0, 
+        compositor_version: 0
+    };
 
-            let surface = {
-                if let Ok(handle) = has_handle.window_handle() {
-                    use raw_window_handle::{RawWindowHandle, WindowHandle};
+    let qh = queue.handle();
+    let display = conn.display();
+    let registry = display.get_registry(&qh, ());
 
-                    if let RawWindowHandle::Wayland(wayland) = handle.as_raw() {
-                        //let as_surface = wayland.surface.as_ptr() as *mut wl_surface;
-                        
-                        //unsafe { &mut *as_surface }
-                        unsafe { WlSurface::from_id(&conn, ObjectId::from_ptr(WlSurface::interface(), wayland.surface.as_ptr() as _).unwrap()).unwrap() }
-                    } else { return }
-                } else { return; }
-            };
+    let _ = queue.roundtrip(&mut state);
 
-            let mut queue: EventQueue<MyState> = conn.new_event_queue();
-            let mut state = MyState { region: MaybeUninit::uninit(), initialized: false, compositor: 0, compositor_v: 0 };
-
-            let qh = queue.handle();
-            let display = conn.display();
-            let registry = display.get_registry(&qh, ());
-            queue.roundtrip(&mut state);
-
-            if state.initialized {
-                let compositor = registry.bind::<WlCompositor, _, _>(state.compositor, state.compositor_v, &qh, ());
-                let region = compositor.create_region(&qh, ());
-                surface.set_input_region(Some(&region));
-            }
-
-            eprintln!("did it work? {}", state.initialized);
-            //let init = unsafe { state.region.assume_init() };
-
-            //surface.set_input_region(Some(&init));
-            //let qh = queue.handle();
-        
-            //let display = conn.display();
-            //let registry = display.get_registry(&qh, ());
-        }
+    if state.initialized {
+        let compositor = registry.bind::<WlCompositor, _, _>(state.compositor_name, state.compositor_version, &qh, ());
+        let region = compositor.create_region(&qh, ());
+        surface.set_input_region(Some(&region));
     }
+
+    Some(())
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -174,8 +154,12 @@ pub fn apply_window_transparency<T: HasWindowHandle + HasDisplayHandle>(has_hand
     if let Ok(handle) = has_handle.window_handle() {
         use raw_window_handle::{RawWindowHandle, WindowHandle};
 
-        if let RawWindowHandle::Wayland(wayland) = handle.as_raw() {
-            make_wayland_window_input_transparent(has_handle);
+        if let RawWindowHandle::Wayland(window) = handle.as_raw() {
+            if let Ok(display) = has_handle.display_handle() {
+                if let RawDisplayHandle::Wayland(display) = display.as_raw() {
+                    make_wayland_window_input_transparent(window.surface.as_ptr(), display.display.as_ptr());
+                }
+            }
         }
     }
 }
