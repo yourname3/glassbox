@@ -767,10 +767,10 @@ impl eframe::App for App {
 
         let current_playing_idx = self.compute_playing_idx();
 
-        if !self.applied_window_transparency {
-            crate::os::apply_window_transparency(_frame);
-            self.applied_window_transparency = true;
-        }
+        // if !self.applied_window_transparency {
+        //     crate::os::apply_window_transparency(_frame);
+        //     self.applied_window_transparency = true;
+        // }
         
 
         let monitor_size = ctx.input(|i| i.viewport().monitor_size);

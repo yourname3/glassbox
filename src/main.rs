@@ -20,6 +20,7 @@ fn main() -> eframe::Result {
             .with_inner_size((800.0, 200.0))
             .with_position((0.0, 0.0))
             .with_transparent(true)
+            .with_mouse_passthrough(true)
         ,
             //.with_inner_size([400.0, 300.0])
             //.with_min_inner_size([300.0, 220.0]),
