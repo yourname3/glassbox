@@ -337,6 +337,8 @@ pub struct App {
     smoothed_clip_y: f32,
 
     current_volume: f32,
+
+    applied_window_transparency: bool,
 }
 
 impl App {
@@ -368,6 +370,8 @@ impl App {
             smoothed_clip_y: 200.0,
 
             current_volume: 1.0,
+
+            applied_window_transparency: false,
         }
     }
 
@@ -763,7 +767,11 @@ impl eframe::App for App {
 
         let current_playing_idx = self.compute_playing_idx();
 
-        crate::os::apply_window_transparency(_frame);
+        if !self.applied_window_transparency {
+            crate::os::apply_window_transparency(_frame);
+            self.applied_window_transparency = true;
+        }
+        
 
         let monitor_size = ctx.input(|i| i.viewport().monitor_size);
         if let Some(size) = monitor_size {

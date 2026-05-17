@@ -23,12 +23,16 @@ pub fn identify_colors_in(image: &ColorImage) -> Palette {
         egui::Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)
     };
 
-    return Palette {
-        fg_a: to_egui(palette[0]),
-        fg_b: to_egui(palette[1]),
+    let get_palette = |idx: usize| {
+        *palette.get(idx).or(palette.get(0)).unwrap_or(&iris_lib::color::Color { r: 0, g: 0, b: 0, a: 255 })
+    };
 
-        bg_a: to_egui(palette[2]),
-        bg_b: to_egui(palette[3]),
+    return Palette {
+        fg_a: to_egui(get_palette(0)),
+        fg_b: to_egui(get_palette(1)),
+
+        bg_a: to_egui(get_palette(2)),
+        bg_b: to_egui(get_palette(3)),
     }
 }
 

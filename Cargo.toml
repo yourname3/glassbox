@@ -18,6 +18,7 @@ raw-window-handle = "0.6.2"
 rfd = "0.15.4"
 rodio = "0.21.1"
 taglib = "1.0.0"
+wayland-backend = "0.3.15"
 wayland-client = "0.31.12"
 
 [target.'cfg(windows)'.dependencies.windows]
